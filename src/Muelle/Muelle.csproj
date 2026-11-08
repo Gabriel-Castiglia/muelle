@@ -25,7 +25,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <!-- The single place where the version is set; scripts\build.ps1 and the installers read it from here. -->
-    <Version>2.0.1</Version>
+    <Version>2.0.2</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>Muelle</Product>
     <Description>A dock for Windows</Description>
@@ -35,6 +35,8 @@
     <!-- The interface carries its own English and Spanish texts; no framework satellite assemblies. -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Debug data names source files from the repository root (/_/), not from the folder where it was built. -->
+    <PathMap>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\'))=/_/</PathMap>
   </PropertyGroup>
 
   <!-- "dotnet publish -c Release" produces a single self-contained Muelle.exe (no .NET install required). -->

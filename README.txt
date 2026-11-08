@@ -1,7 +1,7 @@
 Muelle
 ======
 
-Gabriel Castiglia · November 8, 2026 · version 2.0.1 · GPL-2.0 license
+Gabriel Castiglia · November 9, 2026 · version 2.0.2 · GPL-2.0 license
 
 English · Español (README.es.txt)
 

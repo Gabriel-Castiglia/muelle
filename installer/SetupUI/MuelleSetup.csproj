@@ -40,6 +40,8 @@
     <Company>Gabriel Castiglia</Company>
     <Copyright>Copyright (C) 2026 Gabriel Castiglia</Copyright>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Debug data names source files from the repository root (/_/), not from the folder where it was built. -->
+    <PathMap>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\'))=/_/</PathMap>
   </PropertyGroup>
 
   <ItemGroup>

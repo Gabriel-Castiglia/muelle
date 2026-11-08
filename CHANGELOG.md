@@ -2,6 +2,13 @@
 
 All notable changes to Muelle. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 2.0.2 - 2026-11-09
+
+### Fixed
+
+- The debug data embedded in the setup window named the folder where it was built; source files are now
+  named from the repository root.
+
 ## 2.0.1 - 2026-11-08
 
 ### Added
