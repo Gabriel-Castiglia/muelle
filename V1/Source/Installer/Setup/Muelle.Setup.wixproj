@@ -1,0 +1,18 @@
+<!--
+  Muelle - Dock for Windows
+  Copyright (C) 2026 M. Gabriel Castiglia. Created 2026-11-06.
+  SPDX-License-Identifier: GPL-3.0-or-later
+-->
+<!-- Muelle setup .exe (WiX bundle that contains the MSI). See Installer\build.ps1. -->
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <PropertyGroup>
+    <OutputType>Bundle</OutputType>
+    <OutputName>muelle-setup</OutputName>
+    <Platform>x64</Platform>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <DefineConstants>MsiPath=$(MsiPath);Version=$(Version)</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Bal.wixext" Version="5.0.2" />
+  </ItemGroup>
+</Project>
