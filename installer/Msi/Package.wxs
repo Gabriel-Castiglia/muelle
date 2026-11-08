@@ -74,6 +74,12 @@
         <Component Id="License">
           <File Id="License" Source="..\..\LICENSE" Name="LICENSE.txt" KeyPath="yes" />
         </Component>
+        <Component Id="Readme">
+          <File Id="Readme" Source="..\..\README.txt" KeyPath="yes" />
+        </Component>
+        <Component Id="ReadmeEs">
+          <File Id="ReadmeEs" Source="..\..\README.es.txt" KeyPath="yes" />
+        </Component>
       </Directory>
     </StandardDirectory>
 
@@ -82,6 +88,8 @@
     <Feature Id="Main" Title="Muelle">
       <ComponentRef Id="MuelleExe" />
       <ComponentRef Id="License" />
+      <ComponentRef Id="Readme" />
+      <ComponentRef Id="ReadmeEs" />
     </Feature>
   </Package>
 </Wix>

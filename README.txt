@@ -1,7 +1,7 @@
 Muelle
 ======
 
-Gabriel Castiglia · November 8, 2026 · version 2.0.0 · GPL-2.0 license
+Gabriel Castiglia · November 8, 2026 · version 2.0.1 · GPL-2.0 license
 
 English · Español (README.es.txt)
 
@@ -108,7 +108,7 @@ Files
 
   What                           Where
   ------------------------------ --------------------------------------------------------------------------------------
-  Installed program              C:\Program Files\Muelle
+  Installed program              C:\Program Files\Muelle, with LICENSE.txt, README.txt and README.es.txt
   Settings                       %APPDATA%\Muelle\config.json (it can be deleted to start over)
   Error log, if anything fails   %APPDATA%\Muelle\muelle.log, kept under 512 KB (the previous part in muelle.old.log)
 

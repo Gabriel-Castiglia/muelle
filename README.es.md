@@ -1,6 +1,6 @@
 # Muelle
 
-Gabriel Castiglia · 8 de noviembre de 2026 · versión 2.0.0 · licencia GPL-2.0
+Gabriel Castiglia · 8 de noviembre de 2026 · versión 2.0.1 · licencia GPL-2.0
 
 [English](README.md) · Español
 
@@ -109,7 +109,7 @@ archivos, Bloc de notas, Calculadora…) siguen el idioma de la interfaz.
 
 | Qué | Dónde |
 |---|---|
-| Programa instalado | `C:\Program Files\Muelle` |
+| Programa instalado | `C:\Program Files\Muelle`, con `LICENSE.txt`, `README.txt` y `README.es.txt` |
 | Configuración | `%APPDATA%\Muelle\config.json` (se puede borrar para empezar de cero) |
 | Registro de errores, si algo falla | `%APPDATA%\Muelle\muelle.log`, de menos de 512 KB (la parte anterior queda en `muelle.old.log`) |
 

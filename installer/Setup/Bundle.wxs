@@ -18,6 +18,7 @@
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
   <Bundle Name="Muelle"
           Manufacturer="Gabriel Castiglia"
+          Copyright="Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only."
           Version="$(var.Version)"
           UpgradeCode="7b563c8b-23f7-4432-bb47-5a3534534231"
           IconSourceFile="..\..\src\Muelle\muelle.ico"

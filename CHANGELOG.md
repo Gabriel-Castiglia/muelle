@@ -2,12 +2,18 @@
 
 All notable changes to Muelle. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
-## Unreleased
+## 2.0.1 - 2026-11-08
 
 ### Added
 
 - `README.txt` and `README.es.txt`, plain-text copies of the READMEs for reading without a Markdown
-  viewer. `scripts/manual.sh` builds them with the PDF manuals.
+  viewer. `scripts/manual.sh` builds them with the PDF manuals, and setup installs them next to
+  `Muelle.exe`.
+
+### Fixed
+
+- The properties of `muelle-setup.exe` said "All rights reserved"; they now give the GPL-2.0-only
+  license, like the rest of Muelle.
 
 ## 2.0.0 - 2026-11-08
 
