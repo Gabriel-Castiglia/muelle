@@ -17,7 +17,6 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using WixToolset.BootstrapperApplicationApi;
@@ -44,8 +43,6 @@ internal sealed class SetupWindow : Window
     // Values used by the pages; filled from the engine or, for a preview, by hand.
     public string Version = "", OlderVersion, NewerVersion, InstallFolder = @"C:\Program Files\Muelle", ErrorText;
     public bool Applying { get; private set; }
-
-    public IntPtr Handle { get; private set; }
 
     public SetupWindow(SetupApplication app)
     {
@@ -77,7 +74,6 @@ internal sealed class SetupWindow : Window
 
         Loc.Changed += Redraw;
         Closed += (s, e) => Loc.Changed -= Redraw;
-        SourceInitialized += (s, e) => Handle = new WindowInteropHelper(this).Handle;
         Closing += OnClosing;
         ShowLoading();
     }

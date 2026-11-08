@@ -50,6 +50,7 @@ internal sealed class SetupApplication : BootstrapperApplication
 
     private Dispatcher dispatcher;
     private SetupWindow window;
+    private IntPtr windowHandle;
     private int exitCode;
 
     protected override void OnCreate(CreateEventArgs args)
@@ -73,12 +74,12 @@ internal sealed class SetupApplication : BootstrapperApplication
         Error += OnError;
         ApplyComplete += OnApplyComplete;
 
-        if (HasWindow)
-        {
-            window = new SetupWindow(this);
-            window.Closed += (s, e) => dispatcher.InvokeShutdown();
-            window.Show();
-        }
+        // The window always exists, because the engine needs its handle to apply; it is shown only with a
+        // full or passive interface.
+        window = new SetupWindow(this);
+        window.Closed += (s, e) => dispatcher.InvokeShutdown();
+        windowHandle = new System.Windows.Interop.WindowInteropHelper(window).EnsureHandle();
+        if (HasWindow) window.Show();
         engine.Detect();
         Dispatcher.Run();
         engine.Quit(exitCode);
@@ -141,12 +142,18 @@ internal sealed class SetupApplication : BootstrapperApplication
     {
         Planned = action;
         engine.SetVariableString("MuelleLanguage", Loc.Code(Loc.Current), false);
-        if (window != null) dispatcher.BeginInvoke(new Action(() => window.ShowProgress(action)));
+        if (HasWindow) dispatcher.BeginInvoke(new Action(() => window.ShowProgress(action)));
         // Closing Muelle can take a few seconds: it is done off the window's thread.
         System.Threading.Tasks.Task.Run(() =>
         {
             CloseRunningMuelle();
-            engine.Plan(action);
+            try { engine.Plan(action); }
+            catch (Exception ex)
+            {
+                engine.Log(LogLevel.Error, "Muelle setup: plan could not start: " + ex.Message);
+                LastError = ex.Message;
+                Finish(ex.HResult < 0 ? ex.HResult : unchecked((int)0x80004005));
+            }
         });
     }
 
@@ -197,12 +204,19 @@ internal sealed class SetupApplication : BootstrapperApplication
     private void OnPlanComplete(object sender, PlanCompleteEventArgs e)
     {
         if (e.Status < 0) { Finish(e.Status); return; }
-        engine.Apply(window?.Handle ?? IntPtr.Zero);
+        try { engine.Apply(windowHandle); }
+        catch (Exception ex)
+        {
+            // Without this, a failed call would leave the setup waiting forever.
+            engine.Log(LogLevel.Error, "Muelle setup: apply could not start: " + ex.Message);
+            LastError = ex.Message;
+            Finish(ex.HResult < 0 ? ex.HResult : unchecked((int)0x80004005));
+        }
     }
 
     private void Report(int percent)
     {
-        if (window != null) dispatcher.BeginInvoke(new Action(() => window.SetProgress(percent)));
+        if (HasWindow) dispatcher.BeginInvoke(new Action(() => window.SetProgress(percent)));
     }
 
     private void OnError(object sender, WixToolset.BootstrapperApplicationApi.ErrorEventArgs e)
@@ -224,7 +238,7 @@ internal sealed class SetupApplication : BootstrapperApplication
         bool canceled = Canceled || status == UserCanceled;
         if (!Interactive)
         {
-            dispatcher.BeginInvoke(new Action(() => { if (window != null) window.Close(); else dispatcher.InvokeShutdown(); }));
+            dispatcher.BeginInvoke(new Action(() => dispatcher.InvokeShutdown()));
             return;
         }
         dispatcher.BeginInvoke(new Action(() => window.ShowResult(status >= 0, canceled, restart)));
