@@ -17,6 +17,9 @@ All notable changes to Muelle. Versions follow [semantic versioning](https://sem
 
 ### Changed
 
+- License: GNU GPL version 2 only (GPL-2.0-only); version 1.0 was GPL-3.0-or-later.
+- Store apps show their sharpest icon: the dock reads the app package and picks the largest logo or
+  the icon of its executable, instead of the small one Windows gives to the taskbar.
 - Runs on .NET 10 (version 1.0 used .NET 8, which reaches the end of its support on November 10, 2026).
 - The names of the applications added on the first start follow the interface language, and Windows
   Terminal is added when it is present (Windows PowerShell otherwise).

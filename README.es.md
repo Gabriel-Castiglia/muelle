@@ -1,8 +1,10 @@
 # Muelle
 
-Gabriel Castiglia · 8 de noviembre de 2026 · versión 2.0.0 · licencia GPL-3.0-or-later
+Gabriel Castiglia · 8 de noviembre de 2026 · versión 2.0.0 · licencia GPL-2.0
 
 [English](README.md) · Español
+
+Repositorio: <https://github.com/Gabriel-Castiglia/muelle>
 
 Manual en PDF: [`docs/Muelle-manual-es.pdf`](docs/Muelle-manual-es.pdf)
 
@@ -152,5 +154,5 @@ Ver [`CHANGELOG.md`](CHANGELOG.md) (en inglés).
 Copyright (C) 2026 Gabriel Castiglia.
 
 Muelle es software libre: se puede redistribuir y modificar según los términos de la Licencia Pública
-General GNU publicada por la Free Software Foundation, versión 3 o, a elección, cualquier versión
-posterior. Se distribuye SIN NINGUNA GARANTÍA. El texto completo está en [`LICENSE`](LICENSE).
+General GNU, solo la versión 2 (GPL-2.0-only), publicada por la Free Software Foundation. Se distribuye
+SIN NINGUNA GARANTÍA. El texto completo está en [`LICENSE`](LICENSE).

@@ -2,13 +2,12 @@
 //  AboutWindow.cs
 //  Muelle: a dock for Windows.
 //
-//  Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 3 or later.
+//  Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
 //  Date: November 6, 2026
-//  SPDX-License-Identifier: GPL-3.0-or-later
+//  SPDX-License-Identifier: GPL-2.0-only
 //
 //  This program is free software: you can redistribute it and/or modify it under the terms of
-//  the GNU General Public License as published by the Free Software Foundation, either version 3
-//  of the License, or (at your option) any later version.
+//  the GNU General Public License, version 2, as published by the Free Software Foundation.
 //  It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for details.
 //
 
@@ -16,17 +15,19 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using static Muelle.Loc;
 
 namespace Muelle;
 
-/// <summary>"About Muelle" window: version, the meaning of the name, author, copyright and license.</summary>
+/// <summary>"About Muelle" window: version, the meaning of the name, author, copyright, license and repository.</summary>
 internal sealed class AboutWindow : Window
 {
     private const string Author = "Gabriel Castiglia";
-    private const string LicenseUrl = "https://www.gnu.org/licenses/gpl-3.0.html";
+    private const string LicenseUrl = "https://www.gnu.org/licenses/old-licenses/gpl-2.0.html";
+    public const string Repository = "https://github.com/Gabriel-Castiglia/muelle";
 
     public AboutWindow()
     {
@@ -76,19 +77,24 @@ internal sealed class AboutWindow : Window
                                   "\"Muelle\" is the Spanish word for a dock, the place where ships moor."), null, 10));
         root.Children.Add(Line(tr("Creado por " + Author + " (6 de noviembre de 2026).", "Created by " + Author + " (November 6, 2026).")));
         root.Children.Add(Line("Copyright © 2026 " + Author + "."));
-        root.Children.Add(Line(tr("Licencia: GNU General Public License, versión 3 o posterior (GPL-3.0-or-later).",
-                                  "License: GNU General Public License, version 3 or later (GPL-3.0-or-later)."), FontWeights.SemiBold));
+        var repo = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) };
+        var link = new Hyperlink(new Run(Repository.Replace("https://", ""))) { NavigateUri = new Uri(Repository) };
+        link.RequestNavigate += (s, e) => Open(Repository);
+        repo.Inlines.Add(new Run(tr("Código fuente: ", "Source code: ")));
+        repo.Inlines.Add(link);
+        root.Children.Add(repo);
+        root.Children.Add(Line(tr("Licencia: GNU General Public License, versión 2 (GPL-2.0-only).",
+                                  "License: GNU General Public License, version 2 (GPL-2.0-only)."), FontWeights.SemiBold));
         root.Children.Add(new TextBlock
         {
             Text = tr("Este programa es software libre: puede redistribuirlo y/o modificarlo bajo los términos de la " +
-                      "Licencia Pública General GNU publicada por la Free Software Foundation, versión 3 o (a su elección) " +
-                      "cualquier versión posterior. Se distribuye con la esperanza de que sea útil, pero SIN NINGUNA GARANTÍA, " +
-                      "ni siquiera la garantía implícita de COMERCIABILIDAD o IDONEIDAD PARA UN PROPÓSITO PARTICULAR.",
+                      "Licencia Pública General GNU, versión 2, publicada por la Free Software Foundation. Se distribuye con " +
+                      "la esperanza de que sea útil, pero SIN NINGUNA GARANTÍA, ni siquiera la garantía implícita de " +
+                      "COMERCIABILIDAD o IDONEIDAD PARA UN PROPÓSITO PARTICULAR.",
                       "This program is free software: you can redistribute it and/or modify it under the terms of the " +
-                      "GNU General Public License as published by the Free Software Foundation, either version 3 of the " +
-                      "License, or (at your option) any later version. It is distributed in the hope that it will be useful, " +
-                      "but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A " +
-                      "PARTICULAR PURPOSE."),
+                      "GNU General Public License, version 2, as published by the Free Software Foundation. It is distributed " +
+                      "in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of " +
+                      "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."),
             TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, FontSize = 12, Margin = new Thickness(0, 8, 0, 18),
         });
 

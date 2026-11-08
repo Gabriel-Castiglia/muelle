@@ -2,13 +2,12 @@
 # manual.sh
 # Builds the PDF manuals from the READMEs.
 #
-# Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 3 or later.
+# Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
 # Date: November 8, 2026
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of
-# the GNU General Public License as published by the Free Software Foundation, either version 3
-# of the License, or (at your option) any later version.
+# the GNU General Public License, version 2, as published by the Free Software Foundation.
 # It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for details.
 
 # Builds the PDF manuals from the READMEs:
@@ -24,16 +23,18 @@ cd "$ROOT"
 CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 command -v pandoc >/dev/null || { echo "pandoc is missing: brew install pandoc" >&2; exit 1; }
 [[ -x "$CHROME" ]] || { echo "Google Chrome is missing from /Applications" >&2; exit 1; }
+REPO="https://github.com/Gabriel-Castiglia/muelle"
 VERSION=$(sed -n 's|.*<Version>\(.*\)</Version>.*|\1|p' src/Muelle/Muelle.csproj | head -1)
 
 TEMP="$(mktemp -d)"
 trap 'rm -rf "$TEMP"' EXIT
 
-# Links to other files of the repository have no target inside a PDF: they are kept as plain text.
-cat > "$TEMP/links.lua" <<'LUA'
+# Relative links (LICENSE, CHANGELOG.md, docs/…) point to the repository in the PDF; otherwise they
+# would become paths inside the temporary folder of whoever builds it.
+cat > "$TEMP/links.lua" <<LUA
 function Link(el)
   if not el.target:match("^%a[%w+.-]*:") and not el.target:match("^#") then
-    return el.content
+    el.target = "$REPO/blob/main/" .. el.target
   end
   return el
 end
@@ -47,7 +48,7 @@ build() {
   <img src="docs/images/icon.png" alt="">
   <div>
     <p class="name">Muelle</p>
-    <p class="subtitle">$subtitle $VERSION</p>
+    <p class="subtitle">$subtitle $VERSION · <a href="$REPO">${REPO#https://}</a></p>
   </div>
 </div>
 HTML

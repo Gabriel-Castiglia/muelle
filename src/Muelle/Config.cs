@@ -2,13 +2,12 @@
 //  Config.cs
 //  Muelle: a dock for Windows.
 //
-//  Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 3 or later.
+//  Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
 //  Date: November 6, 2026
-//  SPDX-License-Identifier: GPL-3.0-or-later
+//  SPDX-License-Identifier: GPL-2.0-only
 //
 //  This program is free software: you can redistribute it and/or modify it under the terms of
-//  the GNU General Public License as published by the Free Software Foundation, either version 3
-//  of the License, or (at your option) any later version.
+//  the GNU General Public License, version 2, as published by the Free Software Foundation.
 //  It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for details.
 //
 
@@ -223,14 +222,17 @@ internal sealed class DockItem
 
     private string autoName;
 
-    /// <summary>Names of the Windows programs among the default apps, in both interface languages.</summary>
+    /// <summary>Names of well-known Windows programs and shortcuts, in both interface languages.</summary>
     private static string KnownName(string path)
     {
         if (path.EndsWith("!App", StringComparison.OrdinalIgnoreCase) && path.Contains("WindowsTerminal", StringComparison.OrdinalIgnoreCase))
             return "Terminal";
         return System.IO.Path.GetFileName(path).ToLowerInvariant() switch
         {
-            "explorer.exe" => Loc.tr("Explorador de archivos", "File Explorer"),
+            "explorer.exe" or "file explorer.lnk" => Loc.tr("Explorador de archivos", "File Explorer"),
+            // Shortcuts that Windows creates with English file names on every installation.
+            "control panel.lnk" => Loc.tr("Panel de control", "Control Panel"),
+            "remote desktop connection.lnk" => Loc.tr("Conexión a Escritorio remoto", "Remote Desktop Connection"),
             "notepad.exe" => Loc.tr("Bloc de notas", "Notepad"),
             "calc.exe" => Loc.tr("Calculadora", "Calculator"),
             "mspaint.exe" => "Paint",
@@ -248,7 +250,10 @@ internal sealed class DockItem
     {
         var it = new DockItem { Cfg = cfg };
         it.ExePath = Shell.ResolveTarget(cfg.Path);
-        it.Icon = Shell.LoadSmallNativeIcon(it.ExePath) ?? Shell.LoadIcon(cfg.Path, 256);
+        // Packaged apps: their own sharpest logo (Windows may give the dock a 24 px one).
+        if (it.ExePath != null && it.ExePath.StartsWith(WindowTracker.AumidPrefix, StringComparison.Ordinal))
+            it.Icon = Shell.LoadPackagedIcon(it.ExePath.Substring(WindowTracker.AumidPrefix.Length));
+        it.Icon ??= Shell.LoadSmallNativeIcon(it.ExePath) ?? Shell.LoadIcon(cfg.Path, 256);
         if (it.Icon == null && it.ExePath != null && it.ExePath != cfg.Path) it.Icon = Shell.LoadIcon(it.ExePath, 256);
         return it;
     }

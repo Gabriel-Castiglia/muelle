@@ -2,13 +2,12 @@
 //  Shell.cs
 //  Muelle: a dock for Windows.
 //
-//  Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 3 or later.
+//  Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
 //  Date: November 6, 2026
-//  SPDX-License-Identifier: GPL-3.0-or-later
+//  SPDX-License-Identifier: GPL-2.0-only
 //
 //  This program is free software: you can redistribute it and/or modify it under the terms of
-//  the GNU General Public License as published by the Free Software Foundation, either version 3
-//  of the License, or (at your option) any later version.
+//  the GNU General Public License, version 2, as published by the Free Software Foundation.
 //  It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for details.
 //
 
@@ -142,8 +141,22 @@ internal static class Shell
     /// the original icon, scaled by the dock in high quality, looks much better.
     /// Returns null if the file has a large icon or no icons at all.
     /// </summary>
-    public static ImageSource LoadSmallNativeIcon(string exe)
+    public static ImageSource LoadSmallNativeIcon(string exe) => LoadNativeIcon(exe, out int size) is var icon && size < 256 ? icon : null;
+
+    /// <summary>Size in pixels of the largest icon embedded in the executable (0 if it has none).</summary>
+    public static int NativeIconSize(string exe)
     {
+        LoadNativeIcon(exe, out int size, measureOnly: true);
+        return size;
+    }
+
+    /// <summary>
+    /// Largest icon embedded in the executable, at its original size; <paramref name="size"/> receives that size
+    /// (0 if there is none). Icons of 256 px are not decoded here (the shell gives them in full quality).
+    /// </summary>
+    private static ImageSource LoadNativeIcon(string exe, out int size, bool measureOnly = false)
+    {
+        size = 0;
         if (string.IsNullOrWhiteSpace(exe) || !File.Exists(exe)) return null;
         // Mapped only as a resource file: no code of the program is loaded or run.
         IntPtr mod = LoadLibraryEx(exe, IntPtr.Zero, 0x2 | 0x20); // LOAD_LIBRARY_AS_DATAFILE | LOAD_LIBRARY_AS_IMAGE_RESOURCE
@@ -161,11 +174,12 @@ internal static class Shell
             for (int i = 0; i < count; i++)
             {
                 IntPtr e = dir + 6 + i * 14;
-                int size = Marshal.ReadByte(e) == 0 ? 256 : Marshal.ReadByte(e);
+                int entrySize = Marshal.ReadByte(e) == 0 ? 256 : Marshal.ReadByte(e);
                 int bits = Marshal.ReadInt16(e, 6);
-                if (size > bestSize || (size == bestSize && bits > bestBits)) { best = i; bestSize = size; bestBits = bits; }
+                if (entrySize > bestSize || (entrySize == bestSize && bits > bestBits)) { best = i; bestSize = entrySize; bestBits = bits; }
             }
-            if (best < 0 || bestSize >= 256) return null;
+            size = Math.Max(0, bestSize);
+            if (best < 0 || bestSize >= 256 || measureOnly) return null;
 
             int id = (ushort)Marshal.ReadInt16(dir + 6 + best * 14, 12);
             IntPtr res = FindResource(mod, (IntPtr)id, (IntPtr)3); // RT_ICON
@@ -182,6 +196,96 @@ internal static class Shell
         }
         catch { return null; }
         finally { FreeLibrary(mod); }
+    }
+
+    // ---- Icons of packaged (Store / MSIX) apps ----
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetPackagesByPackageFamily(string family, ref uint count, IntPtr[] fullNames, ref uint bufferLength, char[] buffer);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetPackagePathByFullName(string fullName, ref uint length, StringBuilder path);
+
+    /// <summary>Install folder of a package family (e.g. "Claude_pzs8sxrjxfjjc"), or null.</summary>
+    private static string PackageFolder(string family)
+    {
+        uint count = 0, length = 0;
+        if (GetPackagesByPackageFamily(family, ref count, null, ref length, null) != 122 /* ERROR_INSUFFICIENT_BUFFER */ || count == 0)
+            return null;
+        var names = new IntPtr[count];
+        var buffer = new char[length];
+        if (GetPackagesByPackageFamily(family, ref count, names, ref length, buffer) != 0) return null;
+        string fullName = new string(buffer, 0, Array.IndexOf(buffer, '\0') is int end && end >= 0 ? end : buffer.Length);
+        uint pathLength = 0;
+        GetPackagePathByFullName(fullName, ref pathLength, null);
+        if (pathLength == 0) return null;
+        var path = new StringBuilder((int)pathLength);
+        return GetPackagePathByFullName(fullName, ref pathLength, path) == 0 ? path.ToString() : null;
+    }
+
+    /// <summary>
+    /// The sharpest icon of a packaged app, from its own files. Windows hands the dock the variant made for the
+    /// taskbar, which in some packages is only 24 px (Claude's) and looks blurred when enlarged. This reads the
+    /// package manifest and compares: the logo variants without a background plate (best for a dark dock), the
+    /// other logo variants, and the icon of the app's executable; the largest one wins.
+    /// </summary>
+    public static ImageSource LoadPackagedIcon(string aumid)
+    {
+        try
+        {
+            int bang = aumid.IndexOf('!');
+            if (bang <= 0) return null;
+            string family = aumid.Substring(0, bang), appId = aumid.Substring(bang + 1);
+            string folder = PackageFolder(family);
+            if (folder == null) return null;
+            var manifest = System.Xml.Linq.XDocument.Load(System.IO.Path.Combine(folder, "AppxManifest.xml"));
+            var app = manifest.Descendants().FirstOrDefault(e => e.Name.LocalName == "Application" && (string)e.Attribute("Id") == appId);
+            var visual = app?.Descendants().FirstOrDefault(e => e.Name.LocalName == "VisualElements");
+            string logo = (string)visual?.Attribute("Square44x44Logo");
+            if (logo == null) return null;
+
+            // Logo files: Name.png and Name.<qualifiers>.png (targetsize-256_altform-unplated, scale-200…).
+            // High-contrast and light-theme variants are left out.
+            string dir = System.IO.Path.Combine(folder, System.IO.Path.GetDirectoryName(logo) ?? "");
+            string name = System.IO.Path.GetFileNameWithoutExtension(logo);
+            string bestFile = null;
+            int bestScore = 0, bestSize = 0;
+            foreach (var file in Directory.EnumerateFiles(dir, name + "*.png"))
+            {
+                string q = System.IO.Path.GetFileNameWithoutExtension(file).Substring(name.Length).ToLowerInvariant();
+                if (q.Length > 0 && q[0] != '.') continue;
+                if (q.Contains("contrast-") || q.Contains("lightunplated") || q.Contains("theme-light")) continue;
+                int px = PngWidth(file);
+                int score = q.Contains("altform-unplated") ? px * 2 : px;
+                if (score > bestScore) { bestScore = score; bestSize = px; bestFile = file; }
+            }
+
+            // The executable's icon, when it is larger than every logo (Electron apps such as Claude).
+            string exe = (string)app.Attribute("Executable");
+            string exePath = exe == null ? null : System.IO.Path.Combine(folder, exe);
+            int exeSize = exePath != null && File.Exists(exePath) ? NativeIconSize(exePath) : 0;
+            if (exeSize > bestScore && exeSize > bestSize)
+                return exeSize >= 256 ? LoadIcon(exePath, 256) : LoadSmallNativeIcon(exePath);
+            if (bestFile == null) return null;
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.UriSource = new Uri(bestFile);
+            image.EndInit();
+            image.Freeze();
+            return image;
+        }
+        catch { return null; }
+    }
+
+    /// <summary>Width of a PNG image, read from its header (0 if it cannot be read).</summary>
+    private static int PngWidth(string file)
+    {
+        try
+        {
+            var header = new byte[24];
+            using (var fs = File.OpenRead(file)) if (fs.Read(header, 0, 24) < 24) return 0;
+            return (header[16] << 24) | (header[17] << 16) | (header[18] << 8) | header[19];
+        }
+        catch { return 0; }
     }
 
     /// <summary>

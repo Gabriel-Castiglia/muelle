@@ -2,13 +2,12 @@
 //  SetupWindow.cs
 //  Muelle setup: the setup window, in English and Spanish.
 //
-//  Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 3 or later.
+//  Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
 //  Date: November 8, 2026
-//  SPDX-License-Identifier: GPL-3.0-or-later
+//  SPDX-License-Identifier: GPL-2.0-only
 //
 //  This program is free software: you can redistribute it and/or modify it under the terms of
-//  the GNU General Public License as published by the Free Software Foundation, either version 3
-//  of the License, or (at your option) any later version.
+//  the GNU General Public License, version 2, as published by the Free Software Foundation.
 //  It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for details.
 //
 
@@ -31,7 +30,7 @@ namespace Muelle.Setup;
 /// </summary>
 internal sealed class SetupWindow : Window
 {
-    private const string LicenseUrl = "https://www.gnu.org/licenses/gpl-3.0.html";
+    private const string LicenseUrl = "https://www.gnu.org/licenses/old-licenses/gpl-2.0.html";
 
     private readonly SetupApplication app;
     private readonly ContentControl page = new();
@@ -264,7 +263,7 @@ internal sealed class SetupWindow : Window
 
     private UIElement LicenseLine()
     {
-        var link = new Hyperlink(new Run(tr("Licencia Pública General GNU, versión 3 o posterior", "GNU General Public License, version 3 or later")))
+        var link = new Hyperlink(new Run(tr("Licencia Pública General GNU, versión 2", "GNU General Public License, version 2")))
         {
             NavigateUri = new Uri(LicenseUrl),
         };
