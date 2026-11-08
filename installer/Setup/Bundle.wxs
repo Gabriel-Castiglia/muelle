@@ -1,0 +1,43 @@
+<!--
+  Bundle.wxs
+  Setup .exe for Muelle (WiX bundle that contains the MSI).
+
+  Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 3 or later.
+  Date: November 6, 2026
+  SPDX-License-Identifier: GPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify it under the terms of
+  the GNU General Public License as published by the Free Software Foundation, either version 3
+  of the License, or (at your option) any later version.
+  It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for details.
+-->
+<!--
+  muelle-setup.exe: a WiX bundle that installs the MSI with Muelle's own setup window (installer\SetupUI),
+  in English or Spanish, chosen from a menu. The same window opens to uninstall from "Installed apps".
+  Installing a newer version upgrades the old one.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Bundle Name="Muelle"
+          Manufacturer="Gabriel Castiglia"
+          Version="$(var.Version)"
+          UpgradeCode="7b563c8b-23f7-4432-bb47-5a3534534231"
+          IconSourceFile="..\..\src\Muelle\muelle.ico"
+          AboutUrl="https://www.gnu.org/licenses/gpl-3.0.html"
+          DisableModify="yes">
+    <!-- The setup window: a .NET Framework 4.7.2 program, which Windows 10 and 11 already include. -->
+    <BootstrapperApplication SourceFile="$(var.SetupUiDir)MuelleSetup.exe">
+      <Payload SourceFile="$(var.SetupUiDir)MuelleSetup.exe.config" />
+      <Payload SourceFile="$(var.SetupUiDir)WixToolset.BootstrapperApplicationApi.dll" />
+      <Payload SourceFile="$(var.SetupUiDir)mbanative.dll" />
+    </BootstrapperApplication>
+
+    <!-- Interface language chosen in the setup window; handed to the MSI, which stores it for the dock. -->
+    <Variable Name="MuelleLanguage" Value="en" />
+
+    <Chain>
+      <MsiPackage Id="MuelleMsi" SourceFile="$(var.MsiPath)">
+        <MsiProperty Name="MUELLELANGUAGE" Value="[MuelleLanguage]" />
+      </MsiPackage>
+    </Chain>
+  </Bundle>
+</Wix>

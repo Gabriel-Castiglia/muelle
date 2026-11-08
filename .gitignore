@@ -1,0 +1,34 @@
+# Build output (scripts\build.ps1 writes build\ and dist\; dotnet writes bin\ and obj\ next to each project)
+bin/
+obj/
+build/
+dist/
+artifacts/
+*.binlog
+
+# Editors and IDEs
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userprefs
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# Logs and test output
+*.log
+TestResults/
+
+# Operating system files
+.DS_Store
+._*
+Thumbs.db
+desktop.ini
+
+# Internal notes (history, reviews, plans): kept with the working copy, never published
+_internal/

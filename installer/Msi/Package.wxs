@@ -1,0 +1,88 @@
+<!--
+  Package.wxs
+  MSI package for Muelle.
+
+  Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 3 or later.
+  Date: November 6, 2026
+  SPDX-License-Identifier: GPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify it under the terms of
+  the GNU General Public License as published by the Free Software Foundation, either version 3
+  of the License, or (at your option) any later version.
+  It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for details.
+-->
+<!--
+  - Per-machine install into "Program Files\Muelle" (requires administrator rights).
+  - Start menu shortcut and an "Installed apps" entry with its icon.
+  - MajorUpgrade: installing a newer version replaces the previous one automatically.
+  - Closes a running Muelle before replacing or removing its files.
+  - On uninstall, removes the "Start with Windows" entry of the user who uninstalls.
+  - Stores the interface language chosen in the setup window (HKLM\Software\Muelle\Language).
+  User settings (%APPDATA%\Muelle) are never touched, so they survive upgrades.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Package Name="Muelle"
+           Manufacturer="Gabriel Castiglia"
+           Version="$(var.Version)"
+           UpgradeCode="e8f73229-40b6-47cb-8384-98997fc792b9"
+           Scope="perMachine"
+           Language="1033"
+           Codepage="1252">
+    <SummaryInformation Description="Muelle: a dock for Windows" Manufacturer="Gabriel Castiglia" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Muelle is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Icon Id="muelle.ico" SourceFile="..\..\src\Muelle\muelle.ico" />
+    <Property Id="ARPPRODUCTICON" Value="muelle.ico" />
+    <Property Id="ARPNOMODIFY" Value="1" />
+    <Property Id="ARPCOMMENTS" Value="A dock for Windows. License: GPL-3.0-or-later." />
+    <Property Id="ARPURLINFOABOUT" Value="https://www.gnu.org/licenses/gpl-3.0.html" />
+    <!-- Interface language chosen in the setup window ("en" or "es"); the dock uses it on its first start. -->
+    <Property Id="MUELLELANGUAGE" Value="en" />
+
+    <!-- Close the running dock before its files are replaced or removed. -->
+    <util:CloseApplication Id="CloseMuelle" Target="Muelle.exe" CloseMessage="yes" TerminateProcess="0" RebootPrompt="no" />
+
+    <!--
+      The "Start with Windows" option writes HKCU\...\Run\Muelle. On a full uninstall (not an upgrade) that
+      entry is deleted, so Windows is not left trying to start a file that no longer exists. The action runs
+      as the user who uninstalls (Impersonate), whose HKCU is the one that holds the entry; it never fails
+      the uninstall (Return="ignore"), since the entry may simply not exist.
+    -->
+    <SetProperty Id="RemoveStartupEntry" Sequence="execute" Before="RemoveStartupEntry"
+                 Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE"
+                 Value="&quot;[System64Folder]reg.exe&quot; delete &quot;HKCU\Software\Microsoft\Windows\CurrentVersion\Run&quot; /v Muelle /f" />
+    <CustomAction Id="RemoveStartupEntry" BinaryRef="Wix4UtilCA_X64" DllEntry="WixQuietExec"
+                  Execute="deferred" Impersonate="yes" Return="ignore" />
+    <InstallExecuteSequence>
+      <Custom Action="RemoveStartupEntry" Before="RemoveFiles"
+              Condition="REMOVE=&quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE" />
+    </InstallExecuteSequence>
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Muelle">
+        <Component Id="MuelleExe">
+          <File Id="MuelleExe" Source="$(var.PublishDir)Muelle.exe" KeyPath="yes">
+            <!-- Start menu shortcut (all users). -->
+            <Shortcut Id="MuelleShortcut" Directory="ProgramMenuFolder" Name="Muelle" Description="A dock for Windows"
+                      WorkingDirectory="INSTALLFOLDER" Advertise="no" />
+          </File>
+          <RegistryValue Root="HKLM" Key="Software\Muelle" Name="InstallFolder" Type="string" Value="[INSTALLFOLDER]" />
+          <RegistryValue Root="HKLM" Key="Software\Muelle" Name="Language" Type="string" Value="[MUELLELANGUAGE]" />
+        </Component>
+        <Component Id="License">
+          <File Id="License" Source="..\..\LICENSE" Name="LICENSE.txt" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <Feature Id="Main" Title="Muelle">
+      <ComponentRef Id="MuelleExe" />
+      <ComponentRef Id="License" />
+    </Feature>
+  </Package>
+</Wix>

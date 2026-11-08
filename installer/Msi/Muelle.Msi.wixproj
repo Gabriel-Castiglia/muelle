@@ -1,0 +1,27 @@
+<!--
+  Muelle.Msi.wixproj
+  WiX project for the Muelle MSI.
+
+  Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 3 or later.
+  Date: November 6, 2026
+  SPDX-License-Identifier: GPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify it under the terms of
+  the GNU General Public License as published by the Free Software Foundation, either version 3
+  of the License, or (at your option) any later version.
+  It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for details.
+-->
+<!-- WiX Toolset 5 project. The app must be published first: see scripts\build.ps1. -->
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <PropertyGroup>
+    <OutputName>muelle</OutputName>
+    <Platform>x64</Platform>
+    <InstallerPlatform>x64</InstallerPlatform>
+    <DefineConstants>PublishDir=$(PublishDir);Version=$(Version)</DefineConstants>
+    <!-- ICE43/ICE57 assume per-user installs; this package is per-machine (all-users Start menu). -->
+    <SuppressIces>ICE43;ICE57</SuppressIces>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
+  </ItemGroup>
+</Project>

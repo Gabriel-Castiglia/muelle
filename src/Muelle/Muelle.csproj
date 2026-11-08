@@ -1,0 +1,59 @@
+<!--
+  Muelle.csproj
+  Project file for Muelle.
+
+  Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 3 or later.
+  Date: November 6, 2026
+  SPDX-License-Identifier: GPL-3.0-or-later
+
+  This program is free software: you can redistribute it and/or modify it under the terms of
+  the GNU General Public License as published by the Free Software Foundation, either version 3
+  of the License, or (at your option) any later version.
+  It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for details.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Muelle</AssemblyName>
+    <RootNamespace>Muelle</RootNamespace>
+    <StartupObject>Muelle.Program</StartupObject>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>muelle.ico</ApplicationIcon>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <!-- The single place where the version is set; scripts\build.ps1 and the installers read it from here. -->
+    <Version>2.0.0</Version>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Product>Muelle</Product>
+    <Description>A dock for Windows</Description>
+    <Authors>Gabriel Castiglia</Authors>
+    <Company>Gabriel Castiglia</Company>
+    <Copyright>Copyright (C) 2026 Gabriel Castiglia</Copyright>
+    <!-- The interface carries its own English and Spanish texts; no framework satellite assemblies. -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- "dotnet publish -c Release" produces a single self-contained Muelle.exe (no .NET install required). -->
+  <PropertyGroup Condition="'$(_IsPublishing)' == 'true'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Icon used by the About window. -->
+    <Resource Include="muelle.ico" />
+    <!-- The license travels next to the executable, outside the single-file bundle, so the About window can open it. -->
+    <None Include="..\..\LICENSE" Link="LICENSE.txt" CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+  </ItemGroup>
+
+</Project>

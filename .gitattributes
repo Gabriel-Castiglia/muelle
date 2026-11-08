@@ -1,0 +1,10 @@
+# Text files are stored and checked out with LF line endings.
+* text=auto eol=lf
+# Visual Studio writes solution files with CRLF.
+*.sln text eol=crlf
+# Binary files are kept byte for byte.
+*.ico binary
+*.png binary
+*.pdf binary
+*.exe binary
+*.msi binary

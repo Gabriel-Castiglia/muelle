@@ -1,0 +1,31 @@
+# .editorconfig
+# Muelle: a dock for Windows.
+#
+# Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 3 or later.
+# Date: November 8, 2026
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# This program is free software: you can redistribute it and/or modify it under the terms of
+# the GNU General Public License as published by the Free Software Foundation, either version 3
+# of the License, or (at your option) any later version.
+# It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for details.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{xml,csproj,wixproj,wxs,manifest,css}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.sln]
+end_of_line = crlf
+indent_style = tab
