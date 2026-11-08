@@ -1,6 +1,6 @@
 #!/bin/zsh
 # manual.sh
-# Builds the PDF manuals from the READMEs.
+# Builds the PDF manuals and the plain-text READMEs from the Markdown READMEs.
 #
 # Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
 # Date: November 8, 2026
@@ -10,9 +10,10 @@
 # the GNU General Public License, version 2, as published by the Free Software Foundation.
 # It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for details.
 
-# Builds the PDF manuals from the READMEs:
-#   README.md     -> docs/Muelle-manual-en.pdf
-#   README.es.md  -> docs/Muelle-manual-es.pdf
+# Builds the PDF manuals and the plain-text READMEs from the Markdown READMEs:
+#   README.md     -> docs/Muelle-manual-en.pdf and README.txt
+#   README.es.md  -> docs/Muelle-manual-es.pdf and README.es.txt
+# The .txt copies are for reading on Windows without a Markdown viewer; they are never edited by hand.
 # Requires pandoc (brew install pandoc) and Google Chrome, which prints the HTML to PDF.
 # Run it again after every change to either README or to the images in docs/images.
 
@@ -39,6 +40,30 @@ function Link(el)
   return el
 end
 LUA
+
+# Plain text: no images, titles underlined, links to the other README point to its .txt copy, and web
+# links keep their address after the text.
+cat > "$TEMP/text.lua" <<'LUA'
+function Image(el) return {} end
+function Header(el)
+  local text = pandoc.utils.stringify(el.content)
+  local rule = string.rep(el.level == 1 and "=" or "-", utf8.len(text))
+  return pandoc.Plain({pandoc.Str(text), pandoc.LineBreak(), pandoc.Str(rule)})
+end
+function Link(el)
+  local target = el.target:gsub("^README%.es%.md$", "README.es.txt"):gsub("^README%.md$", "README.txt")
+  local text = pandoc.utils.stringify(el.content)
+  if text == target then return pandoc.Str(target) end
+  if not target:match("^https?:") then return pandoc.Str(text .. " (" .. target .. ")") end
+  return pandoc.Str(text .. " <" .. target .. ">")
+end
+LUA
+
+text() {
+    local source=$1 output=$2
+    pandoc "$source" --from gfm --to plain --columns 100 --lua-filter "$TEMP/text.lua" --output "$output"
+    echo "Text: $output"
+}
 
 build() {
     local source=$1 lang=$2 title=$3 subtitle=$4 output=$5
@@ -68,3 +93,6 @@ HTML
 
 build README.md    en "Muelle · Manual"            "A dock for Windows · version"   docs/Muelle-manual-en.pdf
 build README.es.md es "Muelle · Manual de usuario" "Dock para Windows · versión"     docs/Muelle-manual-es.pdf
+
+text README.md    README.txt
+text README.es.md README.es.txt

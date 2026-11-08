@@ -2,6 +2,8 @@
 * text=auto eol=lf
 # Visual Studio writes solution files with CRLF.
 *.sln text eol=crlf
+# Plain-text READMEs, read with Notepad on Windows.
+*.txt text eol=crlf
 # Binary files are kept byte for byte.
 *.ico binary
 *.png binary

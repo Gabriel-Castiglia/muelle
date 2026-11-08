@@ -2,6 +2,13 @@
 
 All notable changes to Muelle. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## Unreleased
+
+### Added
+
+- `README.txt` and `README.es.txt`, plain-text copies of the READMEs for reading without a Markdown
+  viewer. `scripts/manual.sh` builds them with the PDF manuals.
+
 ## 2.0.0 - 2026-11-08
 
 ### Added

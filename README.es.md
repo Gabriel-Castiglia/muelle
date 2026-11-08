@@ -134,7 +134,8 @@ El primer comando compila el programa. El segundo arma todo en `dist`: el `Muell
 en un solo lugar, `src\Muelle\Muelle.csproj`, y los instaladores y la ventana Acerca de la leen de ahí.
 
 `scripts\screenshots.ps1` genera las imágenes de `docs\images`, y `scripts/manual.sh` (en macOS, con
-pandoc y Google Chrome) arma los manuales en PDF a partir de `README.md` y de este archivo.
+pandoc y Google Chrome) arma los manuales en PDF y
+`README.txt` y `README.es.txt` a partir de `README.md` y de este archivo.
 
 | Carpeta | Contenido |
 |---|---|

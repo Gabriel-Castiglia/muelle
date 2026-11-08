@@ -133,7 +133,8 @@ NuGet package. The version is set in one place, `src\Muelle\Muelle.csproj`, and 
 About window read it from there.
 
 `scripts\screenshots.ps1` renders the images in `docs\images`, and `scripts/manual.sh` (on macOS, with
-pandoc and Google Chrome) builds the PDF manuals from this file and `README.es.md`.
+pandoc and Google Chrome) builds the PDF manuals and
+`README.txt` and `README.es.txt` from this file and `README.es.md`.
 
 | Folder | Contents |
 |---|---|
