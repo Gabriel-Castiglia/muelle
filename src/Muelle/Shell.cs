@@ -204,7 +204,7 @@ internal static class Shell
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetPackagePathByFullName(string fullName, ref uint length, StringBuilder path);
 
-    /// <summary>Install folder of a package family (e.g. "Claude_pzs8sxrjxfjjc"), or null.</summary>
+    /// <summary>Install folder of a package family (e.g. "Microsoft.WindowsCalculator_8wekyb3d8bbwe"), or null.</summary>
     private static string PackageFolder(string family)
     {
         uint count = 0, length = 0;
@@ -223,7 +223,7 @@ internal static class Shell
 
     /// <summary>
     /// The sharpest icon of a packaged app, from its own files. Windows hands the dock the variant made for the
-    /// taskbar, which in some packages is only 24 px (Claude's) and looks blurred when enlarged. This reads the
+    /// taskbar, which in some packages is only 24 px and looks blurred when enlarged. This reads the
     /// package manifest and compares: the logo variants without a background plate (best for a dark dock), the
     /// other logo variants, and the icon of the app's executable; the largest one wins.
     /// </summary>
@@ -258,7 +258,7 @@ internal static class Shell
                 if (score > bestScore) { bestScore = score; bestSize = px; bestFile = file; }
             }
 
-            // The executable's icon, when it is larger than every logo (Electron apps such as Claude).
+            // The executable's icon, when it is larger than every logo (common in Electron apps).
             string exe = (string)app.Attribute("Executable");
             string exePath = exe == null ? null : System.IO.Path.Combine(folder, exe);
             int exeSize = exePath != null && File.Exists(exePath) ? NativeIconSize(exePath) : 0;
