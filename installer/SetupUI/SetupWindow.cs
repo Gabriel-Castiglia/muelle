@@ -92,11 +92,15 @@ internal sealed class SetupWindow : Window
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         try
         {
-            grid.Children.Add(new Image
+            // The largest frame of the icon, scaled down smoothly: the first frame of the file may be a small one.
+            var frames = BitmapDecoder.Create(new Uri("pack://application:,,,/muelle.ico"), BitmapCreateOptions.None, BitmapCacheOption.OnLoad).Frames;
+            var image = new Image
             {
-                Source = BitmapFrame.Create(new Uri("pack://application:,,,/muelle.ico")),
+                Source = frames.OrderByDescending(f => f.PixelWidth).First(),
                 Width = 48, Height = 48, Margin = new Thickness(0, 0, 14, 0),
-            });
+            };
+            RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+            grid.Children.Add(image);
         }
         catch { /* the window still works without the icon */ }
         var titles = new StackPanel { VerticalAlignment = VerticalAlignment.Center };

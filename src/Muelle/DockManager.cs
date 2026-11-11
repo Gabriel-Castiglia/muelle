@@ -43,6 +43,10 @@ internal sealed class DockManager
         this.screenshotWindow = screenshotWindow;
         Config = DockConfig.Load(out bool firstRun);
         Loc.Current = Loc.FromCode(Config.Language);
+        // A test screenshot shows the dock even if it hides itself (the configuration is never saved in that mode).
+        if (screenshotPath != null) Config.AutoHide = false;
+        Theme.Set(Config.Appearance, Config.Accent);
+        Theme.Changed += () => { foreach (var w in windows) w.View.ThemeChanged(); };
         if (screenshotPath == null)
         {
             Config.StartWithWindows = DockConfig.IsStartupEnabled();
@@ -66,7 +70,13 @@ internal sealed class DockManager
     {
         if (IsScreenshot && screenshotWindow != "dock")
         {
-            Window w = screenshotWindow == "about" ? new AboutWindow() : new SettingsWindow(this);
+            Window w = screenshotWindow switch
+            {
+                "about" => new AboutWindow(),
+                "update" => new UpdateWindow(new Version(Updates.Current.Major, Updates.Current.Minor + 1, 0)),
+                "menu" => MenuPreview(),
+                _ => new SettingsWindow(this),
+            };
             w.ContentRendered += (s, e) =>
                 w.Dispatcher.BeginInvoke(new Action(() => { SaveScreenshot(w, screenshotPath); Exit(); }), DispatcherPriority.ContextIdle);
             w.Show();
@@ -75,6 +85,53 @@ internal sealed class DockManager
         Rebuild();
         RefreshRunning();
         runningTimer.Start();
+        foreach (var w in windows) w.View.ThemeChanged();
+        // Once a day, if the option is on, ask GitHub whether there is a newer version (the first time a little
+        // after starting, so it does not slow down the start with Windows).
+        updateTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(30) };
+        updateTimer.Tick += async (s, e) =>
+        {
+            updateTimer.Interval = TimeSpan.FromHours(1);
+            if (IsScreenshot || !Config.CheckUpdates || DateTime.UtcNow - Config.LastUpdateCheck < TimeSpan.FromHours(24)) return;
+            Config.LastUpdateCheck = DateTime.UtcNow;
+            SaveConfig();
+            var newer = await Updates.NewerAsync();
+            if (newer != null && !exiting) UpdateWindow.ShowNotice(newer);
+        };
+        updateTimer.Start();
+    }
+
+    private DispatcherTimer updateTimer;
+
+    /// <summary>Changes the appearance ("auto", "light" or "dark") and the accent colour, and saves them.</summary>
+    public void SetTheme(string appearance, string accent)
+    {
+        Config.Appearance = appearance;
+        Config.Accent = accent;
+        SaveConfig();
+        Theme.Set(appearance, accent);
+    }
+
+    /// <summary>
+    /// Test screenshot of the right-click menu of the first icon. A menu only opens as a popup, so its items
+    /// are laid out in a window inside the same rounded frame; submenus show no arrow there.
+    /// </summary>
+    private Window MenuPreview()
+    {
+        var menu = new DockWindow(this, null, null).BuildMenu(Items.FirstOrDefault(), 0);
+        var items = menu.Items.Cast<object>().ToList();
+        menu.Items.Clear();
+        var list = new System.Windows.Controls.StackPanel();
+        foreach (var it in items)
+        {
+            if (it is System.Windows.Controls.Separator sep) sep.SetResourceReference(FrameworkElement.StyleProperty, System.Windows.Controls.MenuItem.SeparatorStyleKey);
+            list.Children.Add((UIElement)it);
+        }
+        var frame = new System.Windows.Controls.Border { Child = list };
+        frame.SetResourceReference(FrameworkElement.StyleProperty, "Mu.PopupFrame");
+        var w = new Window { SizeToContent = SizeToContent.WidthAndHeight, ResizeMode = ResizeMode.NoResize, Content = frame };
+        Theme.Attach(w);
+        return w;
     }
 
     /// <summary>Creates or closes windows according to the monitor option and the connected monitors.</summary>
@@ -284,6 +341,7 @@ internal sealed class DockManager
         if (exiting) return;
         exiting = true;
         runningTimer.Stop();
+        updateTimer?.Stop();
         FlushConfig();
         settings?.Close();
         about?.Close();

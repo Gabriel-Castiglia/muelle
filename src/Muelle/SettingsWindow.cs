@@ -3,7 +3,7 @@
 //  Muelle: a dock for Windows.
 //
 //  Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
-//  Date: November 6, 2026
+//  Date: November 6, 2026 (theme and appearance section: November 11, 2026)
 //  SPDX-License-Identifier: GPL-2.0-only
 //
 //  This program is free software: you can redistribute it and/or modify it under the terms of
@@ -14,6 +14,7 @@
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 using static Muelle.Loc;
 
@@ -41,15 +42,14 @@ internal sealed class SettingsWindow : Window
     {
         this.manager = manager;
         // Moderate, resizable size: two columns to keep it short; scrolls if it does not fit.
-        Width = 900;
-        Height = Math.Min(600, SystemParameters.WorkArea.Height - 40);
-        MinWidth = 760;
-        MinHeight = 360;
-        ResizeMode = ResizeMode.CanResizeWithGrip;
+        Width = 960;
+        Height = Math.Min(700, SystemParameters.WorkArea.Height - 40);
+        MinWidth = 800;
+        MinHeight = 380;
+        ResizeMode = ResizeMode.CanResize;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
         FontSize = 13;
-        Background = new SolidColorBrush(Color.FromRgb(0xF7, 0xF7, 0xF9));
+        Theme.Attach(this);
 
         Rebuild();
         Activated += (s, e) => RefreshApps();
@@ -68,6 +68,7 @@ internal sealed class SettingsWindow : Window
         left.Children.Add(BuildPosition());
         left.Children.Add(BuildBehavior());
         var right = new StackPanel { Margin = new Thickness(8, 0, 0, 0) };
+        right.Children.Add(BuildAppearance());
         right.Children.Add(BuildSize());
         right.Children.Add(BuildLanguage());
         right.Children.Add(BuildApps());
@@ -81,8 +82,9 @@ internal sealed class SettingsWindow : Window
 
         var footer = BuildFooter();
         DockPanel.SetDock(footer, Dock.Bottom);
-        var layout = new DockPanel { Margin = new Thickness(16, 8, 16, 12) };
+        var layout = new DockPanel { Margin = new Thickness(18, 8, 10, 14) };
         layout.Children.Add(footer);
+        columns.Margin = new Thickness(0, 0, 8, 0);
         scroller = new ScrollViewer { Content = columns, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         layout.Children.Add(scroller);
         Content = layout;
@@ -225,12 +227,9 @@ internal sealed class SettingsWindow : Window
         box.Children.Add(Check(tr("Reservar su franja de pantalla (las ventanas maximizadas no lo tapan)",
                                   "Reserve its screen strip (maximized windows do not cover it)"), Config.ReserveSpace,
             v => { Config.ReserveSpace = v; Apply(); }));
-        box.Children.Add(new TextBlock
-        {
-            Text = tr("Al reservar la franja, Windows reacomoda los iconos del escritorio que quedaban debajo y puede moverlos a otro monitor. Si eso molesta, desmarcar esta opción.",
-                      "When the strip is reserved, Windows rearranges the desktop icons that were underneath and may move them to another monitor. If that is a problem, turn this option off."),
-            TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, FontSize = 11.5, Margin = new Thickness(22, 0, 0, 4),
-        });
+        box.Children.Add(Hint(tr("Al reservar la franja, Windows reacomoda los iconos del escritorio que quedaban debajo y puede moverlos a otro monitor. Si eso molesta, desmarcar esta opción.",
+                                 "When the strip is reserved, Windows rearranges the desktop icons that were underneath and may move them to another monitor. If that is a problem, turn this option off."),
+                              new Thickness(46, 0, 0, 6)));
         box.Children.Add(Check(tr("Ocultar automáticamente (aparece al llevar el puntero al borde)",
                                   "Hide automatically (shows up when the pointer reaches the edge)"), Config.AutoHide,
             v => { Config.AutoHide = v; Apply(); }));
@@ -246,6 +245,68 @@ internal sealed class SettingsWindow : Window
             DockConfig.SetStartup(v);
             manager.SaveConfig();
         }));
+        box.Children.Add(Check(tr("Avisar cuando haya una versión nueva (se consulta GitHub una vez al día)",
+                                  "Tell me when there is a new version (GitHub is asked once a day)"), Config.CheckUpdates, v =>
+        {
+            Config.CheckUpdates = v;
+            manager.SaveConfig();
+        }));
+        return card;
+    }
+
+    private UIElement BuildAppearance()
+    {
+        var (box, card) = Section(tr("Apariencia", "Appearance"));
+        var segHost = new Border { HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 12) };
+        segHost.SetResourceReference(StyleProperty, "Mu.SegmentHost");
+        var segs = new StackPanel { Orientation = Orientation.Horizontal };
+        foreach (var (key, label) in new[]
+        {
+            (Theme.Auto, tr("Como Windows", "As Windows")), (Theme.Light, tr("Claro", "Light")), (Theme.Dark, tr("Oscuro", "Dark")),
+        })
+        {
+            var rb = new RadioButton { Content = label, GroupName = "appearance", IsChecked = Config.Appearance == key };
+            rb.SetResourceReference(StyleProperty, "Mu.Segment");
+            rb.Checked += (s, e) => { if (rb.IsLoaded) manager.SetTheme(key, Config.Accent); };
+            segs.Children.Add(rb);
+        }
+        segHost.Child = segs;
+        box.Children.Add(segHost);
+
+        box.Children.Add(new TextBlock { Text = tr("Color:", "Colour:"), Margin = new Thickness(0, 0, 0, 4) });
+        var tiles = new UniformGrid { Columns = 6, Margin = new Thickness(-3, 0, -3, 4) };
+        var marks = new List<(string Key, Border Tile)>();
+        void Mark()
+        {
+            foreach (var (k, t) in marks)
+            {
+                bool on = k == Config.Accent;
+                if (on) { t.SetResourceReference(Border.BorderBrushProperty, "Mu.Accent"); t.SetResourceReference(Border.BackgroundProperty, "Mu.AccentSoft"); }
+                else { t.BorderBrush = Brushes.Transparent; t.Background = Brushes.Transparent; }
+            }
+        }
+        foreach (var a in Theme.Accents)
+        {
+            var img = new Image { Width = 40, Height = 40, Source = Theme.Icon(a.Key, 64), Margin = new Thickness(0, 2, 0, 3) };
+            RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
+            // Room for two lines, so that a long name ("Verde azulado") wraps instead of being cut.
+            var name = new TextBlock { Text = a.Name, FontSize = 11, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Height = 30 };
+            var tile = new Border
+            {
+                Padding = new Thickness(2, 4, 2, 4), Margin = new Thickness(3), CornerRadius = new CornerRadius(9),
+                BorderThickness = new Thickness(2), Cursor = System.Windows.Input.Cursors.Hand, ToolTip = a.Name,
+                Child = new StackPanel { Children = { img, name } },
+            };
+            var key = a.Key;
+            tile.MouseLeftButtonUp += (s, e) => { manager.SetTheme(Config.Appearance, key); Mark(); };
+            marks.Add((key, tile));
+            tiles.Children.Add(tile);
+        }
+        Mark();
+        box.Children.Add(tiles);
+        box.Children.Add(Hint(tr("El color se usa en el ícono de las ventanas de Muelle, en el punto de las apps abiertas y en los controles.",
+                                 "The colour is used for the icon of Muelle's windows, the dot of open apps and the controls."),
+                              new Thickness(0, 2, 0, 0)));
         return card;
     }
 
@@ -270,13 +331,10 @@ internal sealed class SettingsWindow : Window
     private UIElement BuildApps()
     {
         var (box, card) = Section(tr("Aplicaciones del dock", "Dock applications"));
-        box.Children.Add(new TextBlock
-        {
-            Text = tr("También se pueden agregar arrastrando un acceso directo o un .exe sobre el dock, y reordenar o quitar arrastrando los iconos.",
-                      "Apps can also be added by dropping a shortcut or an .exe on the dock, and reordered or removed by dragging the icons."),
-            TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, FontSize = 12,
-        });
-        appList = new ListBox { Height = 120, Margin = new Thickness(0, 4, 0, 6) };
+        box.Children.Add(Hint(tr("También se pueden agregar arrastrando un acceso directo o un .exe sobre el dock, y reordenar o quitar arrastrando los iconos.",
+                                 "Apps can also be added by dropping a shortcut or an .exe on the dock, and reordered or removed by dragging the icons."),
+                              new Thickness(0)));
+        appList = new ListBox { Height = 150, Margin = new Thickness(0, 6, 0, 8) };
         box.Children.Add(appList);
 
         var buttons = new WrapPanel();
@@ -298,7 +356,7 @@ internal sealed class SettingsWindow : Window
 
     private UIElement BuildFooter()
     {
-        var row = new DockPanel { Margin = new Thickness(0, 10, 0, 0), LastChildFill = false };
+        var row = new DockPanel { Margin = new Thickness(0, 10, 8, 0), LastChildFill = false };
         var folder = Button(tr("Abrir carpeta de configuración", "Open settings folder"), () =>
         {
             manager.FlushConfig();
@@ -371,22 +429,25 @@ internal sealed class SettingsWindow : Window
         var box = new StackPanel();
         var card = new Border
         {
-            Background = Brushes.White,
-            BorderBrush = new SolidColorBrush(Color.FromRgb(0xE2, 0xE4, 0xE9)),
-            BorderThickness = new Thickness(1),
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(14, 10, 14, 12),
-            Margin = new Thickness(0, 6, 0, 6),
             Child = new StackPanel
             {
                 Children =
                 {
-                    new TextBlock { Text = title, FontWeight = FontWeights.SemiBold, FontSize = 14, Margin = new Thickness(0, 0, 0, 6) },
+                    new TextBlock { Text = title, FontWeight = FontWeights.SemiBold, FontSize = 14.5, Margin = new Thickness(0, 0, 0, 8) },
                     box,
                 },
             },
         };
+        card.SetResourceReference(StyleProperty, "Mu.CardFrame");
         return (box, card);
+    }
+
+    /// <summary>A short explanation in the muted colour of the theme.</summary>
+    private static TextBlock Hint(string text, Thickness margin)
+    {
+        var t = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, FontSize = 11.5, Margin = margin };
+        t.SetResourceReference(TextBlock.ForegroundProperty, "Mu.TextMuted");
+        return t;
     }
 
     /// <summary>
@@ -419,8 +480,8 @@ internal sealed class SettingsWindow : Window
     {
         var content = new StackPanel();
         content.Children.Add(new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap });
-        if (hint != null) content.Children.Add(new TextBlock { Text = hint, FontSize = 11.5, Foreground = Brushes.DimGray, TextWrapping = TextWrapping.Wrap });
-        var rb = new RadioButton { GroupName = group, Content = content, IsChecked = isChecked, Margin = new Thickness(0, 3, 0, 3) };
+        if (hint != null) content.Children.Add(Hint(hint, new Thickness(0, 1, 0, 0)));
+        var rb = new RadioButton { GroupName = group, Content = content, IsChecked = isChecked, Margin = new Thickness(0, 4, 0, 4) };
         rb.Checked += (s, e) => { if (rb.IsLoaded) onChecked(); };
         return rb;
     }
@@ -430,7 +491,7 @@ internal sealed class SettingsWindow : Window
         var cb = new CheckBox
         {
             Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap },
-            IsChecked = isChecked, Margin = new Thickness(0, 3, 0, 3),
+            IsChecked = isChecked, Margin = new Thickness(0, 5, 0, 5),
         };
         cb.Click += (s, e) => onChange(cb.IsChecked == true);
         return cb;
@@ -438,7 +499,7 @@ internal sealed class SettingsWindow : Window
 
     private static Button Button(string text, Action onClick)
     {
-        var b = new Button { Content = text, Padding = new Thickness(12, 4, 12, 4), Margin = new Thickness(0, 0, 8, 6), MinWidth = 70 };
+        var b = new Button { Content = text, Margin = new Thickness(0, 0, 8, 6) };
         b.Click += (s, e) => onClick();
         return b;
     }

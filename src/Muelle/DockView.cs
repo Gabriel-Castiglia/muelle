@@ -62,27 +62,10 @@ internal sealed class DockView : FrameworkElement
     public int DemoHoverIndex = -1;
 
     private static readonly Brush Catch = Freeze(new SolidColorBrush(Color.FromArgb(1, 0, 0, 0)));
-    private static readonly Brush GlassBase = Freeze(new SolidColorBrush(Color.FromArgb(0x70, 0x16, 0x19, 0x21)));
-    private static readonly Brush GlassSheen = Freeze(new LinearGradientBrush(
-        new GradientStopCollection
-        {
-            new GradientStop(Color.FromArgb(0x34, 0xFF, 0xFF, 0xFF), 0),
-            new GradientStop(Color.FromArgb(0x10, 0xFF, 0xFF, 0xFF), 0.45),
-            new GradientStop(Color.FromArgb(0x06, 0xFF, 0xFF, 0xFF), 1),
-        }, new Point(0, 0), new Point(1, 1)));
-    private static readonly Pen GlassPen = Freeze(new Pen(Freeze(new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF))), 1));
-    private static readonly Pen GlassInner = Freeze(new Pen(Freeze(new SolidColorBrush(Color.FromArgb(0x30, 0x00, 0x00, 0x00))), 1));
-    private Brush panelBrush;               // panel background, recreated when the opacity changes
+    // The colours of the glass, the panel, the dots and the label come from Theme.Dock (light or dark, and the accent).
+    private Brush panelBrush;               // panel background, recreated when the opacity or the theme changes
     private int panelAlpha = -1;
-    private static readonly Brush PanelEdge = Freeze(new SolidColorBrush(Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF)));
-    private static readonly Brush PanelHover = Freeze(new SolidColorBrush(Color.FromArgb(0x38, 0xFF, 0xFF, 0xFF)));
-    private static readonly Brush DotBrush = Freeze(new SolidColorBrush(Color.FromArgb(0xF0, 0xFF, 0xFF, 0xFF)));
-    private static readonly Pen DotPen = Freeze(new Pen(Freeze(new SolidColorBrush(Color.FromArgb(0x70, 0, 0, 0))), 0.8));
-    private static readonly Brush LabelBrush = Freeze(new SolidColorBrush(Color.FromArgb(0xE6, 0x1E, 0x21, 0x29)));
-    private static readonly Pen LabelPen = Freeze(new Pen(Freeze(new SolidColorBrush(Color.FromArgb(0x40, 0xFF, 0xFF, 0xFF))), 1));
-    private static readonly Pen DashPen = Freeze(new Pen(Freeze(new SolidColorBrush(Color.FromArgb(0xC0, 0xFF, 0xFF, 0xFF))), 1.6)
-    { DashStyle = new DashStyle(new double[] { 3, 2.5 }, 0) });
-    private static readonly Brush DashFill = Freeze(new SolidColorBrush(Color.FromArgb(0x30, 0xFF, 0xFF, 0xFF)));
+    private Color panelColor;
     private static readonly Brush RemoveBrush = Freeze(new SolidColorBrush(Color.FromRgb(0xE5, 0x48, 0x4D)));
     private static readonly Typeface Face = new(new FontFamily("Segoe UI Variable Text, Segoe UI"), FontStyles.Normal, FontWeights.Medium, FontStretches.Normal);
 
@@ -99,6 +82,13 @@ internal sealed class DockView : FrameworkElement
             BlurRadius = 12, ShadowDepth = 1.5, Direction = 270, Opacity = 0.38,
             Color = Colors.Black, RenderingBias = RenderingBias.Performance,
         };
+    }
+
+    /// <summary>The theme changed: a lighter shadow under the icons on a light dock, and a redraw.</summary>
+    public void ThemeChanged()
+    {
+        if (Effect is DropShadowEffect shadow) shadow.Opacity = Theme.IsDark ? 0.38 : 0.24;
+        InvalidateVisual();
     }
 
     // ---------------- Measurements (in logical pixels) ----------------
@@ -313,6 +303,7 @@ internal sealed class DockView : FrameworkElement
         double T = Thickness, b = Base;
         double ppd = VisualTreeHelper.GetDpi(this).PixelsPerDip;
         double hideOff = -hideT * (T + (Zoom - b) + b * 0.8 + 14);
+        var pal = Theme.Dock;
 
         // Nearly transparent area that receives the pointer and dropped files.
         if (hideT < 0.97) dc.DrawRectangle(Catch, null, R(0, hideOff, L, T));
@@ -322,14 +313,19 @@ internal sealed class DockView : FrameworkElement
         if (IsPanel)
         {
             byte alpha = (byte)Math.Round(Cfg.PanelOpacity * 2.55);
-            if (alpha != panelAlpha) { panelAlpha = alpha; panelBrush = Freeze(new SolidColorBrush(Color.FromArgb(alpha, 0x1D, 0x1F, 0x26))); }
+            if (alpha != panelAlpha || pal.Panel != panelColor)
+            {
+                panelAlpha = alpha;
+                panelColor = pal.Panel;
+                panelBrush = Freeze(new SolidColorBrush(Color.FromArgb(alpha, pal.Panel.R, pal.Panel.G, pal.Panel.B)));
+            }
             dc.DrawRectangle(panelBrush, null, R(0, hideOff, L, T));
-            dc.DrawRectangle(PanelEdge, null, R(0, T - 1 + hideOff, L, 1));
+            dc.DrawRectangle(pal.PanelEdge, null, R(0, T - 1 + hideOff, L, 1));
             if (hoverIndex >= 0 && hoverIndex < layout.Count && !layout[hoverIndex].IsGap && !dragging)
             {
                 var he = layout[hoverIndex];
                 double m = Math.Round(Base * 0.14) + 2;
-                dc.DrawRoundedRectangle(PanelHover, null, R(he.Pos - m, Pad - m + hideOff, he.Size + 2 * m, he.Size + 2 * m), 8, 8);
+                dc.DrawRoundedRectangle(pal.PanelHover, null, R(he.Pos - m, Pad - m + hideOff, he.Size + 2 * m, he.Size + 2 * m), 8, 8);
             }
         }
         // Floating dock: glass-effect background.
@@ -337,10 +333,10 @@ internal sealed class DockView : FrameworkElement
         {
             var r = R(shelfA0 - 10, 5 + hideOff, shelfA1 - shelfA0 + 20, T - 10);
             double rad = Math.Min(18, (T - 10) / 2.6);
-            dc.DrawRoundedRectangle(GlassBase, GlassInner, r, rad, rad);
-            dc.DrawRoundedRectangle(GlassSheen, null, r, rad, rad);
+            dc.DrawRoundedRectangle(pal.GlassBase, pal.GlassInner, r, rad, rad);
+            dc.DrawRoundedRectangle(pal.GlassSheen, null, r, rad, rad);
             var inner = r; inner.Inflate(-1, -1);
-            dc.DrawRoundedRectangle(null, GlassPen, inner, rad - 1, rad - 1);
+            dc.DrawRoundedRectangle(null, pal.GlassPen, inner, rad - 1, rad - 1);
         }
 
         double dotC = (5 + Pad) / 2 + hideOff;
@@ -360,7 +356,7 @@ internal sealed class DockView : FrameworkElement
             var it = e.Item;
             double bo = BounceOffset(it, now);
             DrawIcon(dc, it, R(e.Pos, Pad + bo + hideOff, e.Size, e.Size));
-            if (it.Running) dc.DrawEllipse(DotBrush, DotPen, P(e.Center, dotC), 2.4, 2.4);
+            if (it.Running) dc.DrawEllipse(pal.DotBrush, pal.DotPen, P(e.Center, dotC), 2.4, 2.4);
         }
 
         // Name label.
@@ -370,13 +366,13 @@ internal sealed class DockView : FrameworkElement
             string text = e.IsPlaceholder ? tr("Arrastra aquí tus apps", "Drag your apps here") : e.Item?.Name;
             if (!string.IsNullOrEmpty(text))
             {
-                var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, Face, 12.5, Brushes.White, ppd);
+                var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, Face, 12.5, pal.LabelText, ppd);
                 double w = ft.Width + 20, h = ft.Height + 8;
                 double bo = e.Item != null ? BounceOffset(e.Item, now) : 0;
                 double c0 = Pad + e.Size + bo + (Vertical ? 12 : 8) + hideOff;
                 var r = Vertical ? R(e.Center - h / 2, c0, h, w) : R(e.Center - w / 2, c0, w, h);
                 dc.PushOpacity(Math.Clamp(k * 1.4, 0, 1));
-                dc.DrawRoundedRectangle(LabelBrush, LabelPen, r, h / 2, h / 2);
+                dc.DrawRoundedRectangle(pal.LabelBrush, pal.LabelPen, r, h / 2, h / 2);
                 dc.DrawText(ft, new Point(r.X + 10, r.Y + 4));
                 dc.Pop();
             }
@@ -393,7 +389,7 @@ internal sealed class DockView : FrameworkElement
             if (removeIntent)
             {
                 var c = new Point(r.Right - 3, r.Top + 3);
-                dc.DrawEllipse(RemoveBrush, DotPen, c, 8, 8);
+                dc.DrawEllipse(RemoveBrush, null, c, 8, 8);
                 var x = Freeze(new Pen(Brushes.White, 1.8) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round });
                 dc.DrawLine(x, new Point(c.X - 3.2, c.Y - 3.2), new Point(c.X + 3.2, c.Y + 3.2));
                 dc.DrawLine(x, new Point(c.X - 3.2, c.Y + 3.2), new Point(c.X + 3.2, c.Y - 3.2));
@@ -405,7 +401,8 @@ internal sealed class DockView : FrameworkElement
         {
             double f = Math.Clamp((now - t0) / 0.45, 0, 1);
             byte alpha = (byte)(220 * (1 - f));
-            var br = new SolidColorBrush(Color.FromArgb(alpha, 0xFF, 0xFF, 0xFF));
+            var mc = Theme.IsDark ? Colors.White : Color.FromRgb(0x30, 0x30, 0x36);
+            var br = new SolidColorBrush(Color.FromArgb(alpha, mc.R, mc.G, mc.B));
             for (int i = 0; i < 7; i++)
             {
                 double ang = i * Math.PI * 2 / 7 + 0.4;
@@ -420,10 +417,11 @@ internal sealed class DockView : FrameworkElement
         if (r.Width < 4) return;
         var rr = r; rr.Inflate(-2, -2);
         double rad = rr.Width * 0.24;
-        dc.DrawRoundedRectangle(DashFill, DashPen, rr, rad, rad);
+        var pal = Theme.Dock;
+        dc.DrawRoundedRectangle(pal.DashFill, pal.DashPen, rr, rad, rad);
         var c = new Point(rr.X + rr.Width / 2, rr.Y + rr.Height / 2);
         double s = rr.Width * 0.18;
-        var pen = new Pen(Brushes.White, Math.Max(1.5, rr.Width * 0.06)) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+        var pen = new Pen(pal.Mark, Math.Max(1.5, rr.Width * 0.06)) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
         dc.DrawLine(pen, new Point(c.X - s, c.Y), new Point(c.X + s, c.Y));
         dc.DrawLine(pen, new Point(c.X, c.Y - s), new Point(c.X, c.Y + s));
     }

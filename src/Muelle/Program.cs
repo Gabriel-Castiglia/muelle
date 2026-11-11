@@ -24,14 +24,17 @@ internal static class Program
     private static int Main(string[] args)
     {
         // Test options (not shown to users): "--screenshot <file.png>" renders a window to a PNG and exits,
-        // without touching the configuration file; "--window dock|settings|about" picks the window
-        // (dock by default) and "--language en|es" overrides the stored interface language.
-        string shot = null, window = "dock", language = null;
+        // without touching the configuration file; "--window dock|settings|about|update" picks the window
+        // (dock by default), and "--language en|es", "--theme light|dark" and "--accent <key>" override the
+        // stored interface language, appearance and colour.
+        string shot = null, window = "dock", language = null, theme = null, accent = null;
         for (int i = 0; i < args.Length; i++)
         {
             if (args[i] == "--screenshot" && i + 1 < args.Length) shot = Path.GetFullPath(args[++i]);
             else if (args[i] == "--window" && i + 1 < args.Length) window = args[++i];
             else if (args[i] == "--language" && i + 1 < args.Length) language = args[++i];
+            else if (args[i] == "--theme" && i + 1 < args.Length) theme = args[++i];
+            else if (args[i] == "--accent" && i + 1 < args.Length) accent = args[++i];
         }
 
         // Only one dock instance at a time (a test screenshot can run separately).
@@ -42,11 +45,22 @@ internal static class Program
             if (!created) return 0;
         }
 
+        // An error that escapes everything (for example while loading the styles at start) goes to the log
+        // before the process ends; without this it would only reach the Windows event log.
+        AppDomain.CurrentDomain.UnhandledException += (s, e) => Log("Fatal error: " + e.ExceptionObject);
+
         // The application exits only through "Quit Muelle": with several monitors there are several windows.
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         app.DispatcherUnhandledException += (s, e) => { Log(e.Exception.ToString()); e.Handled = true; };
         var manager = new DockManager(shot, window);
         if (language != null) Loc.Current = Loc.FromCode(language);
+        if (shot != null && (theme != null || accent != null))
+        {
+            // Only in memory: a screenshot never writes the configuration.
+            manager.Config.Appearance = theme ?? manager.Config.Appearance;
+            manager.Config.Accent = Theme.Get(accent ?? manager.Config.Accent).Key;
+            Theme.Set(manager.Config.Appearance, manager.Config.Accent);
+        }
         // Windows is signing out or shutting down: write any pending configuration change.
         app.SessionEnding += (s, e) => manager.FlushConfig();
         manager.Start();

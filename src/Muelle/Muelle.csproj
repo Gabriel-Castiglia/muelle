@@ -25,7 +25,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <!-- The single place where the version is set; scripts\build.ps1 and the installers read it from here. -->
-    <Version>2.0.2</Version>
+    <Version>2.1.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>Muelle</Product>
     <Description>A dock for Windows</Description>
@@ -50,8 +50,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Icon used by the About window. -->
-    <Resource Include="muelle.ico" />
+    <!-- The icon in each accent colour, for the windows of Muelle (scripts/make_icon.py draws them). -->
+    <Resource Include="icons\*.ico" />
     <!-- The license travels next to the executable, outside the single-file bundle, so the About window can open it. -->
     <None Include="..\..\LICENSE" Link="LICENSE.txt" CopyToOutputDirectory="PreserveNewest"
           CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />

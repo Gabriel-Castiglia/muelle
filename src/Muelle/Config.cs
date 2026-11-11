@@ -65,6 +65,16 @@ public sealed class DockConfig
     /// <summary>true = icons cannot be added, deleted or reordered by dragging (prevents accidental changes).</summary>
     public bool LockItems { get; set; }
     public Backdrop Backdrop { get; set; } = Backdrop.Glass;
+    /// <summary>
+    /// "auto" (as Windows), "light" or "dark". A settings file from before version 2.1 has none and keeps the
+    /// dark dock it had; a new one follows Windows.
+    /// </summary>
+    public string Appearance { get; set; }
+    /// <summary>Accent colour: the key of one of <see cref="Theme.Accents"/>.</summary>
+    public string Accent { get; set; }
+    /// <summary>true = once a day Muelle asks GitHub whether there is a newer version, and says so if there is.</summary>
+    public bool CheckUpdates { get; set; } = true;
+    public DateTime LastUpdateCheck { get; set; }
     public List<DockItemConfig> Items { get; set; } = new();
 
     public static string Folder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Muelle");
@@ -91,7 +101,7 @@ public sealed class DockConfig
         catch (Exception ex) { Program.Log("Could not read the configuration: " + ex.Message); }
         firstRun = !File.Exists(FilePath);
         // On the first start, the dock speaks the language chosen in the setup window, if it was installed.
-        var fresh = new DockConfig { Language = InstalledLanguage() };
+        var fresh = new DockConfig { Language = InstalledLanguage(), Appearance = Theme.Auto, Accent = Theme.DefaultAccent };
         fresh.Items.AddRange(DefaultItems());
         return fresh;
     }
@@ -118,6 +128,8 @@ public sealed class DockConfig
         Items.RemoveAll(i => i == null || string.IsNullOrWhiteSpace(i.Path));
         Monitor ??= "";
         PanelOpacity = Math.Clamp(PanelOpacity, 0, 100);
+        Appearance = Appearance is Theme.Auto or Theme.Light or Theme.Dark ? Appearance : Theme.Dark;
+        Accent = Theme.Get(Accent).Key;
     }
 
     /// <summary>

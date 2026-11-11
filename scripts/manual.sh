@@ -32,7 +32,11 @@ trap 'rm -rf "$TEMP"' EXIT
 
 # Relative links (LICENSE, CHANGELOG.md, docs/…) point to the repository in the PDF; otherwise they
 # would become paths inside the temporary folder of whoever builds it.
+# The centered header of the README (icon, name, phrase, picture) is for GitHub; the cover has the icon and the name.
 cat > "$TEMP/links.lua" <<LUA
+function RawBlock(el)
+  if el.format == "html" and el.text:match('align="center"') then return {} end
+end
 function Link(el)
   if not el.target:match("^%a[%w+.-]*:") and not el.target:match("^#") then
     el.target = "$REPO/blob/main/" .. el.target
@@ -45,6 +49,12 @@ LUA
 # links keep their address after the text.
 cat > "$TEMP/text.lua" <<'LUA'
 function Image(el) return {} end
+-- The centered GitHub header: only its title stays, underlined like the other titles.
+function RawBlock(el)
+  local title = el.text:match("<h1[^>]*>(.-)</h1>")
+  if not title then return {} end
+  return pandoc.Plain({pandoc.Str(title), pandoc.LineBreak(), pandoc.Str(string.rep("=", utf8.len(title)))})
+end
 function Header(el)
   local text = pandoc.utils.stringify(el.content)
   local rule = string.rep(el.level == 1 and "=" or "-", utf8.len(text))

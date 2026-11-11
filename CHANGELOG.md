@@ -2,6 +2,35 @@
 
 All notable changes to Muelle. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 2.1.0 - 2026-11-11
+
+### Added
+
+- Light, dark or as Windows. The dock turns into frosted light glass or dark glass, and the settings, About
+  and update windows follow, title bar included. "As Windows" changes with Windows while Muelle runs.
+  Chosen in Settings → Appearance or from the dock menu. A settings file from an earlier version keeps the
+  dark dock; a new installation follows Windows.
+- Twelve colours. The one chosen colours the dot under open apps, the switches, sliders and selected
+  items, and the icon of Muelle's windows.
+- Notice of new versions: once a day Muelle asks GitHub for the latest version number and, if it is newer,
+  offers to open the download page. It can be turned off in Settings → Behavior; About Muelle… asks on
+  request.
+- `SHA256SUMS.txt` and the PDF manuals in each release.
+
+### Changed
+
+- A new icon: the armed three-master of Frans Huys's engraving after Pieter Bruegel the Elder (The
+  Metropolitan Museum of Art, public domain), drawn by `scripts/make_icon.py` in the twelve colours.
+- The settings window: rounded cards, switches instead of check boxes, and its own drop-down lists,
+  sliders and scroll bars. The dock menu has the same rounded look.
+- The README and the manuals say x64 only, and link to the latest release.
+
+### Fixed
+
+- The setup window showed a blurred icon: it took the first frame of the icon file instead of the largest.
+- An error while Muelle starts is now written to `muelle.log`; before, it only reached the Windows event
+  log.
+
 ## 2.0.2 - 2026-11-09
 
 ### Fixed

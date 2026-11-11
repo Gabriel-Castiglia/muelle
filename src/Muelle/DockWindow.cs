@@ -448,6 +448,17 @@ internal sealed class DockWindow : Window
     /// <summary>Short menu: actions on the icon, adding apps, and access to the settings window.</summary>
     public void ShowMenu(DockItem item, int insertAt)
     {
+        var menu = BuildMenu(item, insertAt);
+        menu.Opened += (s, e) => { MenuOpen = true; View.Kick(); };
+        menu.Closed += (s, e) => { MenuOpen = false; View.Kick(); };
+        Native.SetForegroundWindow(hwnd);
+        menu.PlacementTarget = View;
+        menu.IsOpen = true;
+    }
+
+    /// <summary>The right-click menu, for an icon (item) or for the dock (item null).</summary>
+    public ContextMenu BuildMenu(DockItem item, int insertAt)
+    {
         var menu = new ContextMenu { Placement = PlacementMode.MousePoint };
 
         if (item != null)
@@ -487,16 +498,23 @@ internal sealed class DockWindow : Window
             language.Items.Add(mi);
         }
         menu.Items.Add(language);
+        var look = new MenuItem { Header = tr("Apariencia", "Appearance") };
+        foreach (var (key, label) in new[]
+        {
+            (Theme.Auto, tr("Como Windows", "As Windows")), (Theme.Light, tr("Claro", "Light")), (Theme.Dark, tr("Oscuro", "Dark")),
+        })
+        {
+            var mi = Cmd(label, () => Manager.SetTheme(key, Config.Accent));
+            mi.IsCheckable = true;
+            mi.IsChecked = Config.Appearance == key;
+            look.Items.Add(mi);
+        }
+        menu.Items.Add(look);
         menu.Items.Add(Cmd(tr("Configuración…", "Settings…"), () => Manager.OpenSettings()));
         menu.Items.Add(Cmd(tr("Acerca de Muelle…", "About Muelle…"), () => Manager.OpenAbout()));
         menu.Items.Add(new Separator());
         menu.Items.Add(Cmd(tr("Salir de Muelle", "Quit Muelle"), Manager.Exit));
-
-        menu.Opened += (s, e) => { MenuOpen = true; View.Kick(); };
-        menu.Closed += (s, e) => { MenuOpen = false; View.Kick(); };
-        Native.SetForegroundWindow(hwnd);
-        menu.PlacementTarget = View;
-        menu.IsOpen = true;
+        return menu;
     }
 
     private static MenuItem Cmd(string header, Action action)
