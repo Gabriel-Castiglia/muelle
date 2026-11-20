@@ -353,6 +353,11 @@ internal sealed class MonitorInfo
     public IntPtr Handle;
     public Native.RECT Bounds, Work;
     public string Device;
+    /// <summary>
+    /// Device path of the physical screen (it names the model and the connector, so it survives a restart or a change
+    /// of the order of the screens); "" if Windows gives none.
+    /// </summary>
+    public string Id = "";
     public bool Primary;
     public uint Dpi = 96;
     public double Scale => Dpi / 96.0;
@@ -360,6 +365,37 @@ internal sealed class MonitorInfo
 
 internal static class Monitors
 {
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct DISPLAY_DEVICE
+    {
+        public int cb;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string DeviceName;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceString;
+        public int StateFlags;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceID;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)] public string DeviceKey;
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern bool EnumDisplayDevices(string device, uint index, ref DISPLAY_DEVICE info, uint flags);
+
+    /// <summary>The device path of the first active screen attached to a display ("" if there is none).</summary>
+    private static string ScreenId(string device)
+    {
+        try
+        {
+            for (uint i = 0; i < 8; i++)
+            {
+                var dd = new DISPLAY_DEVICE { cb = Marshal.SizeOf<DISPLAY_DEVICE>() };
+                // EDD_GET_DEVICE_INTERFACE_NAME: \\?\DISPLAY#<model>#<connector>#{…} instead of a generic name.
+                if (!EnumDisplayDevices(device, i, ref dd, 1)) break;
+                if ((dd.StateFlags & 1) != 0 && !string.IsNullOrEmpty(dd.DeviceID)) return dd.DeviceID; // DISPLAY_DEVICE_ACTIVE
+            }
+        }
+        catch { }
+        return "";
+    }
+
     /// <summary>All monitors, ordered left to right.</summary>
     public static List<MonitorInfo> All()
     {
@@ -373,7 +409,7 @@ internal static class Monitors
                 try { if (Native.GetDpiForMonitor(h, 0, out uint dx, out _) == 0 && dx > 0) dpi = dx; } catch { }
                 list.Add(new MonitorInfo
                 {
-                    Handle = h, Bounds = mi.rcMonitor, Work = mi.rcWork, Device = mi.szDevice,
+                    Handle = h, Bounds = mi.rcMonitor, Work = mi.rcWork, Device = mi.szDevice, Id = ScreenId(mi.szDevice),
                     Primary = (mi.dwFlags & 1) != 0, Dpi = dpi,
                 });
             }
@@ -382,6 +418,12 @@ internal static class Monitors
         list.Sort((a, b) => a.Bounds.Left != b.Bounds.Left ? a.Bounds.Left.CompareTo(b.Bounds.Left) : a.Bounds.Top.CompareTo(b.Bounds.Top));
         return list;
     }
+
+    /// <summary>Example screens shown in the settings window of a test screenshot (--sample); null = the real ones.</summary>
+    public static List<MonitorInfo> Sample;
+
+    /// <summary>The screens the settings window lists: the real ones, or the example ones of a test screenshot.</summary>
+    public static List<MonitorInfo> Listed() => Sample ?? All();
 
     /// <summary>The chosen monitor ("" = the Windows primary display).</summary>
     public static MonitorInfo Pick(string device)

@@ -145,6 +145,14 @@ internal sealed class DockView : FrameworkElement
         return new Native.RECT((int)a.X, (int)a.Y, (int)b.X, (int)b.Y);
     }
 
+    /// <summary>The icon of an item in this view's own coordinates (where a stack opens from), or null.</summary>
+    public Rect? IconLocalRect(DockItem item)
+    {
+        if (layout.Count == 0) ComputeLayout();
+        var e = layout.FirstOrDefault(x => x.Item == item);
+        return e == null ? null : R(e.Pos, Pad, e.Size, e.Size);
+    }
+
     private (double a, double c) AC(Point p) => Cfg.Edge switch
     {
         DockEdge.Left => (p.Y, p.X),

@@ -1,9 +1,9 @@
-#!/bin/zsh
+#!/usr/bin/env bash
 # manual.sh
 # Builds the PDF manuals and the plain-text READMEs from the Markdown READMEs.
 #
 # Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
-# Date: November 8, 2026
+# Date: November 8, 2026 (also in Git Bash on Windows: November 20, 2026)
 # SPDX-License-Identifier: GPL-2.0-only
 #
 # This program is free software: you can redistribute it and/or modify it under the terms of
@@ -14,16 +14,22 @@
 #   README.md     -> docs/Muelle-manual-en.pdf and README.txt
 #   README.es.md  -> docs/Muelle-manual-es.pdf and README.es.txt
 # The .txt copies are for reading on Windows without a Markdown viewer; they are never edited by hand.
-# Requires pandoc (brew install pandoc) and Google Chrome, which prints the HTML to PDF.
+# Requires pandoc (brew install pandoc, or pandoc.org) and Google Chrome, which prints the HTML to PDF.
+# Runs on macOS and in Git Bash on Windows; CHROME may name another Chrome (or Edge) executable.
 # Run it again after every change to either README or to the images in docs/images.
 
 set -euo pipefail
-ROOT="${0:A:h:h}"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-command -v pandoc >/dev/null || { echo "pandoc is missing: brew install pandoc" >&2; exit 1; }
-[[ -x "$CHROME" ]] || { echo "Google Chrome is missing from /Applications" >&2; exit 1; }
+if [[ -z "${CHROME:-}" ]]; then
+    CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    [[ -x "$CHROME" ]] || CHROME="/c/Program Files/Google/Chrome/Application/chrome.exe"
+fi
+command -v pandoc >/dev/null || { echo "pandoc is missing: brew install pandoc (or pandoc.org)" >&2; exit 1; }
+[[ -x "$CHROME" ]] || { echo "Google Chrome is missing (set CHROME to its executable)" >&2; exit 1; }
+# Windows programs (Chrome) want Windows paths; elsewhere a path stays as it is.
+native() { if command -v cygpath >/dev/null; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
 REPO="https://github.com/Gabriel-Castiglia/muelle"
 VERSION=$(sed -n 's|.*<Version>\(.*\)</Version>.*|\1|p' src/Muelle/Muelle.csproj | head -1)
 
@@ -95,9 +101,10 @@ HTML
         --metadata pagetitle="$title" \
         --metadata lang="$lang" \
         --output "$TEMP/manual-$lang.html"
-    # No header or footer: Chrome would print the local path of the HTML file in them.
-    "$CHROME" --headless --disable-gpu --no-pdf-header-footer \
-        --print-to-pdf="$ROOT/$output" "file://$TEMP/manual-$lang.html" 2>/dev/null
+    # No header or footer: Chrome would print the local path of the HTML file in them. A profile of its own,
+    # so a Chrome that is already open is left alone.
+    "$CHROME" --headless --disable-gpu --no-pdf-header-footer --user-data-dir="$(native "$TEMP/chrome")" \
+        --print-to-pdf="$(native "$ROOT/$output")" "file:///$(native "$TEMP/manual-$lang.html" | sed 's|^/||')" 2>/dev/null
     echo "Manual: $output"
 }
 

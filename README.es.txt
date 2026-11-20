@@ -1,7 +1,7 @@
 Muelle
 ======
 
-Gabriel Castiglia · 11 de noviembre de 2026 · versión 2.1.0 · GPL-2.0-only
+Gabriel Castiglia · 20 de noviembre de 2026 · versión 2.2.0 · GPL-2.0-only
 
 English (README.txt) · Español
 
@@ -14,7 +14,9 @@ un dock flotante que amplía los iconos al pasar el puntero, al estilo de macOS,
 borde a borde, al estilo de Ubuntu. La interfaz está en inglés y en castellano: arranca en el idioma
 elegido al instalar (en inglés si corre sin instalación) y se cambia cuando se quiera. El nombre es
 la palabra castellana para el lugar donde amarran los barcos, que en inglés se dice «dock». Puede
-ser claro, oscuro o seguir a Windows, en uno de doce colores.
+ser claro, oscuro o seguir a Windows, en uno de doce colores. Varios accesos pueden compartir un
+icono como pila, cada pantalla puede tener sus propios iconos, y las versiones nuevas se instalan
+solas.
 
 Requisitos
 ----------
@@ -47,7 +49,10 @@ elegido en esa ventana es el que usa el dock la primera vez que arranca.
 
 Correr un muelle-setup.exe más nuevo actualiza el Muelle instalado y conserva la configuración de
 cada usuario. Si Muelle está abierto, el instalador lo cierra antes de reemplazar sus archivos. Una
-versión vieja no se puede instalar encima de una más nueva.
+versión vieja no se puede instalar encima de una más nueva. El Muelle instalado también se puede
+actualizar solo: ver Versiones nuevas (#versiones-nuevas).
+
+Para instalar sin ventanas: muelle-setup.exe /quiet (Windows igual pide permiso de administrador).
 
 Para que Muelle arranque con Windows, marcar Configuración → Comportamiento → «Iniciar Muelle al
 encender Windows».
@@ -79,14 +84,47 @@ Uso del dock
   Tienda (Teams, Terminal…) y objetos del sistema como el Panel de control.
 - Los iconos se reordenan arrastrándolos a lo largo del dock y se quitan arrastrándolos afuera.
   «Bloquear iconos» impide las dos cosas, para evitar cambios por accidente.
+- Una pila es un icono que guarda varios accesos: un clic los despliega al lado. Ver Pilas (#pilas).
 - Cuando los iconos no entran en una pantalla, se achican solo en esa pantalla.
 - Con una aplicación a pantalla completa (un video, un juego) el dock pasa por detrás.
 
 El clic derecho sobre un icono ofrece Mostrar (o Abrir), Abrir otra ventana, Ejecutar como
 administrador, Abrir ubicación del archivo, Finalizar tarea (en las aplicaciones con procesos
-propios) y Mantener en el dock o Quitar del dock. El clic derecho sobre el dock ofrece Agregar
-aplicación…, el cambio entre dock flotante y panel fijo, Bloquear iconos, los menús de idioma y de
-apariencia, Configuración…, Acerca de Muelle… y Salir de Muelle.
+propios) y Mover a la pila (si el dock tiene una pila), y Mantener en el dock o Quitar del dock. El
+clic derecho sobre el dock ofrece Agregar aplicación…, Nueva pila…, el cambio entre dock flotante y
+panel fijo, Bloquear iconos, los menús de idioma y de apariencia, Configuración…, Buscar
+actualizaciones, Acerca de Muelle… y Salir de Muelle.
+
+Pilas
+-----
+
+Una pila guarda varios accesos bajo un solo icono, como las pilas del Dock de la Mac. Un clic la
+despliega al lado del icono, cada acceso con su icono; un clic en uno lo abre, o trae su ventana al
+frente si ya está abierto. «Editar pila…», al final de la lista, abre el editor de la pila.
+
+- «Nueva pila…», en el menú del dock o en Configuración → Aplicaciones del dock, crea una.
+- En el editor: el nombre de la pila; su icono, uno propio («Elegir icono…»: un .ico, un programa o
+  una imagen) o «Icono automático», sus primeros cuatro accesos en cuadrícula; y sus accesos, con
+  Agregar…, Quitar, Subir y Bajar. El dock no cambia hasta «Guardar».
+- «Mover a la pila», en el menú de un icono, pone ese icono al final de una pila.
+- Una pila se mueve y se quita como cualquier otro icono. Una app abierta que está en una pila no
+  vuelve a aparecer al final del dock.
+
+Cada pantalla con sus propios iconos
+------------------------------------
+
+Con el dock en todas las pantallas, de entrada cada copia muestra los mismos iconos. Configuración →
+Ubicación → «Cada pantalla con sus propios iconos» le da a cada pantalla su propia lista. Una
+pantalla que aparece por primera vez empieza con una copia de los iconos comunes, y de ahí en más
+sus iconos se agregan, quitan y reordenan en su propio dock, o en Configuración → Aplicaciones del
+dock, que entonces tiene una lista «Iconos de» para elegir la pantalla.
+
+Muelle reconoce cada pantalla por el nombre que Windows le da al monitor físico y al conector donde
+está enchufado, así que conserva sus iconos después de reiniciar o si se reordenan las pantallas; si
+Windows no da ese nombre, por su nombre de pantalla y su resolución. Cuando una pantalla se
+desconecta, sus iconos quedan guardados en la configuración y vuelven al conectarla otra vez. Al
+apagar la opción se vuelve a los iconos comunes, y los de cada pantalla quedan guardados para la
+próxima vez.
 
 Configuración
 -------------
@@ -96,12 +134,12 @@ Clic derecho sobre el dock → Configuración…. Cada cambio se aplica en el mo
   Grupo                   Opciones
   ----------------------- ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   Estilo                  Dock flotante (estilo Mac) o panel fijo (estilo Ubuntu); opacidad del panel.
-  Ubicación               Borde de la pantalla; la pantalla principal, todas las pantallas (una copia en cada una) o una pantalla concreta.
-  Comportamiento          Reservar la franja de pantalla, ocultar automáticamente, mostrar las apps abiertas que no están fijadas, bloquear los iconos, iniciar con Windows, avisar cuando haya una versión nueva.
+  Ubicación               Borde de la pantalla; la pantalla principal, todas las pantallas (una copia en cada una) o una pantalla concreta; cada pantalla con sus propios iconos.
+  Comportamiento          Reservar la franja de pantalla, ocultar automáticamente, mostrar las apps abiertas que no están fijadas, bloquear los iconos, iniciar con Windows, buscar versiones nuevas.
   Apariencia              Como Windows, claro u oscuro; uno de doce colores.
   Iconos                  Tamaño (de 24 a 96 px), ampliación al pasar el puntero (hasta el doble), fondo del dock flotante.
   Idioma                  Inglés o castellano.
-  Aplicaciones del dock   La lista de aplicaciones fijas, con Agregar, Quitar, Subir y Bajar.
+  Aplicaciones del dock   La lista de aplicaciones fijas y pilas, con Agregar, Nueva pila, Editar pila (o doble clic), Quitar, Subir y Bajar; con iconos propios por pantalla, la pantalla cuyos iconos se listan.
 
 Apariencia
 ----------
@@ -123,11 +161,25 @@ instalación nueva sigue a Windows.
 Versiones nuevas
 ----------------
 
-Una vez por día, Muelle le pregunta a GitHub el número de la última versión. Si es más nueva, una
-ventana chica lo avisa y ofrece abrir la página de descarga; Muelle nunca baja ni instala nada por
-su cuenta. La consulta no lleva más que el nombre del programa y su versión. Se apaga en
-Configuración → Comportamiento → «Avisar cuando haya una versión nueva»; Acerca de Muelle… → «Buscar
-versión nueva» pregunta cuando se quiera.
+Una vez por día, Muelle le pregunta a GitHub por su última versión publicada; «Buscar
+actualizaciones», en el menú del dock y en Acerca de Muelle…, pregunta cuando se quiera. Si hay una
+versión más nueva, una ventana chica hace una sola pregunta: Actualizar ahora, Ver novedades (la
+página de la versión) o Más tarde. Después de «Actualizar ahora» todo pasa solo:
+
+1.  El instalador de esa versión, muelle-setup.exe, se baja a %TEMP%\MuelleUpdate y se compara con
+    el SHA256SUMS.txt de la misma versión. Un archivo que no coincide se borra y nunca se ejecuta.
+2.  Muelle anota cómo se lo abrió y se cierra.
+3.  El instalador instala en silencio, con el idioma elegido al instalar Muelle; Windows pide
+    permiso de administrador, como en cualquier instalación. Espera a que Muelle se haya cerrado, y
+    cierra cualquier otra copia que corra desde la carpeta de instalación.
+4.  Muelle se vuelve a abrir, con los mismos argumentos, y avisa que se actualizó.
+
+Si algo falla, no se instala nada: Muelle sigue, o se vuelve a abrir, y dice qué pasó (por ejemplo,
+si se niega el permiso de administrador). Una copia de Muelle.exe que corre sin instalación no se
+puede reemplazar sola; para ella la ventana solo ofrece la página de la versión.
+
+Las consultas no llevan más que el nombre del programa y su versión. La consulta diaria se apaga en
+Configuración → Comportamiento.
 
 Idioma
 ------
@@ -145,6 +197,7 @@ Archivos
   Programa instalado                   C:\Program Files\Muelle, con LICENSE.txt, README.txt y README.es.txt
   Configuración                        %APPDATA%\Muelle\config.json (se puede borrar para empezar de cero)
   Registro de errores, si algo falla   %APPDATA%\Muelle\muelle.log, de menos de 512 KB (la parte anterior queda en muelle.old.log)
+  Actualización en curso               %TEMP%\MuelleUpdate (el instalador y cómo se abrió Muelle)
 
 Limitaciones conocidas
 ----------------------
@@ -163,15 +216,23 @@ Con el SDK de .NET 10 <https://dotnet.microsoft.com/download> instalado:
     powershell -ExecutionPolicy Bypass -File scripts\build.ps1
 
 El primer comando compila el programa. El segundo arma todo en dist: el Muelle.exe suelto,
-muelle.msi y muelle-setup.exe; el WiX Toolset 5 se baja solo como paquete NuGet. La versión se fija
-en un solo lugar, src\Muelle\Muelle.csproj, y los instaladores y la ventana Acerca de la leen de
-ahí.
+muelle.msi, muelle-setup.exe y SHA256SUMS.txt; el WiX Toolset 5 se baja solo como paquete NuGet.
+Cada versión publicada tiene que llevar muelle-setup.exe y SHA256SUMS.txt con esos nombres, porque
+las actualizaciones los buscan.
 
-scripts\screenshots.ps1 genera las imágenes de docs\images (desde una sesión de escritorio: por SSH
-la imagen del dock sale vacía), y scripts/manual.sh (en macOS, con pandoc y Google Chrome) arma los
-manuales en PDF y README.txt y README.es.txt a partir de README.md y de este archivo.
-scripts/make_icon.py dibuja el ícono en sus doce colores a partir del grabado de assets/ (Python 3
-con numpy, opencv-python y Pillow).
+Muelle.exe --self-test <registro> revisa el archivo de configuración, las pilas, los iconos por
+pantalla y las funciones de actualización (comparación de versiones, hashes, la línea de comandos
+del instalador), y escribe una línea por prueba en el registro; su código de salida es la cantidad
+de fallas. Trabaja sobre una carpeta de configuración descartable en %TEMP% que borra al final, no
+muestra ventanas y no toca un Muelle abierto. Con --online además baja el instalador de la última
+versión y lo compara con su SHA256SUMS.txt, sin ejecutarlo. La versión se fija en un solo lugar,
+src\Muelle\Muelle.csproj, y los instaladores y la ventana Acerca de la leen de ahí.
+
+scripts\screenshots.ps1 genera las imágenes de docs\images con aplicaciones de ejemplo (desde una
+sesión de escritorio: por SSH la imagen del dock sale vacía), y scripts/manual.sh (con pandoc y
+Google Chrome, en macOS o en Git Bash en Windows) arma los manuales en PDF y README.txt y
+README.es.txt a partir de README.md y de este archivo. scripts/make_icon.py dibuja el ícono en sus
+doce colores a partir del grabado de assets/ (Python 3 con numpy, opencv-python y Pillow).
 
   Carpeta             Contenido
   ------------------- -----------------------------------------------------------------------------------

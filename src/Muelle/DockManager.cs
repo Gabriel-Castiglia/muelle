@@ -20,11 +20,13 @@ namespace Muelle;
 
 /// <summary>
 /// Coordinates the dock windows: a single one (primary monitor or a specific one) or one per monitor.
-/// All share the same configuration, the same list of applications and a single scan of the open windows.
+/// All share the same configuration and a single scan of the open windows; they show the same list of
+/// applications or, with <see cref="DockConfig.PerMonitor"/>, each screen its own.
 /// </summary>
 internal sealed class DockManager
 {
     public DockConfig Config { get; }
+    /// <summary>The icons shared by every dock (<see cref="DockConfig.Items"/>).</summary>
     public List<DockItem> Items { get; } = new();
     public bool IsScreenshot => screenshotPath != null;
 
@@ -35,9 +37,12 @@ internal sealed class DockManager
     private readonly DispatcherTimer rebuildTimer, runningTimer, saveTimer;
     private string monitorKey;
     private SettingsWindow settings;
+    /// <summary>The live icons of each screen that has its own dock, created when first needed.</summary>
+    private readonly Dictionary<MonitorDockConfig, List<DockItem>> monitorLists = new();
     private AboutWindow about;
 
-    public DockManager(string screenshotPath, string screenshotWindow)
+    /// <param name="selfTest">The self-test: the configuration is the throwaway one and Windows settings (start with Windows) are not touched.</param>
+    public DockManager(string screenshotPath, string screenshotWindow, bool selfTest = false)
     {
         this.screenshotPath = screenshotPath;
         this.screenshotWindow = screenshotWindow;
@@ -47,7 +52,7 @@ internal sealed class DockManager
         if (screenshotPath != null) Config.AutoHide = false;
         Theme.Set(Config.Appearance, Config.Accent);
         Theme.Changed += () => { foreach (var w in windows) w.View.ThemeChanged(); };
-        if (screenshotPath == null)
+        if (screenshotPath == null && !selfTest)
         {
             Config.StartWithWindows = DockConfig.IsStartupEnabled();
             if (Config.StartWithWindows) DockConfig.SetStartup(true); // refreshes the path if the executable moved
@@ -72,9 +77,15 @@ internal sealed class DockManager
         {
             Window w = screenshotWindow switch
             {
-                "about" => new AboutWindow(),
-                "update" => new UpdateWindow(new Version(Updates.Current.Major, Updates.Current.Minor + 1, 0)),
+                "about" => new AboutWindow(this),
+                "update" => new UpdateWindow(this, new Release
+                {
+                    Tag = new Version(Updates.Current.Major, Updates.Current.Minor + 1, 0).ToString(),
+                    SetupUrl = Updates.SetupName, SumsUrl = Updates.SumsName,
+                }),
                 "menu" => MenuPreview(),
+                "stack" => MenuPreview(Items.FirstOrDefault(i => i.IsStack)),
+                "stack-editor" => new StackWindow(this, Items, Items.FirstOrDefault(i => i.IsStack), 0),
                 _ => new SettingsWindow(this),
             };
             w.ContentRendered += (s, e) =>
@@ -93,15 +104,46 @@ internal sealed class DockManager
         {
             updateTimer.Interval = TimeSpan.FromHours(1);
             if (IsScreenshot || !Config.CheckUpdates || DateTime.UtcNow - Config.LastUpdateCheck < TimeSpan.FromHours(24)) return;
-            Config.LastUpdateCheck = DateTime.UtcNow;
+            Config.LastUpdateCheck = DateTime.UtcNow;   // even if it fails (no network): at most one try a day
             SaveConfig();
-            var newer = await Updates.NewerAsync();
-            if (newer != null && !exiting) UpdateWindow.ShowNotice(newer);
+            if (!exiting) await Updates.CheckAsync(this, interactive: false);
         };
         updateTimer.Start();
     }
 
     private DispatcherTimer updateTimer;
+
+    /// <summary>
+    /// Test screenshots: example apps and a stack, instead of the user's own; never saved. Only programs that come
+    /// with every Windows, so the picture says nothing about what the machine that takes it has installed.
+    /// </summary>
+    public void UseSample()
+    {
+        string sys = Environment.SystemDirectory, win = Environment.GetFolderPath(Environment.SpecialFolder.Windows);
+        string pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
+        List<DockItemConfig> Existing(params string[] paths) =>
+            paths.Where(File.Exists).Select(p => new DockItemConfig { Name = "", Path = p }).ToList();
+        Config.Edge = DockEdge.Bottom;
+        Config.Items = Existing(Path.Combine(win, "explorer.exe"), Path.Combine(pf86, @"Microsoft\Edge\Application\msedge.exe"),
+                                Path.Combine(sys, "notepad.exe"), Path.Combine(sys, "calc.exe"), Path.Combine(sys, "Taskmgr.exe"),
+                                Path.Combine(sys, @"WindowsPowerShell\v1.0\powershell.exe"));
+        var tools = Existing(Path.Combine(sys, "notepad.exe"), Path.Combine(sys, "calc.exe"), Path.Combine(sys, "Taskmgr.exe"),
+                             Path.Combine(sys, @"WindowsPowerShell\v1.0\powershell.exe"));
+        Config.Items.Insert(Math.Min(2, Config.Items.Count), new DockItemConfig { Name = Loc.tr("Utilidades", "Utilities"), Stack = tools });
+        Items.Clear();
+        foreach (var c in Config.Items) Items.Add(DockItem.From(c));
+        // Fixed "open" dots, not those of the apps that happen to be open on the machine that takes the picture.
+        sample = true;
+        // The settings window lists two example screens, not those of the machine.
+        Monitors.Sample = new List<MonitorInfo>
+        {
+            new() { Device = @"\\.\DISPLAY1", Bounds = new Native.RECT(0, 0, 2560, 1440), Work = new Native.RECT(0, 0, 2560, 1400), Primary = true, Dpi = 96 },
+            new() { Device = @"\\.\DISPLAY2", Bounds = new Native.RECT(2560, 0, 4480, 1080), Work = new Native.RECT(2560, 0, 4480, 1040), Dpi = 96 },
+        };
+        for (int i = 0; i < Items.Count; i++) Items[i].Running = i is 0 or 2;
+    }
+
+    private bool sample;
 
     /// <summary>Changes the appearance ("auto", "light" or "dark") and the accent colour, and saves them.</summary>
     public void SetTheme(string appearance, string accent)
@@ -116,9 +158,10 @@ internal sealed class DockManager
     /// Test screenshot of the right-click menu of the first icon. A menu only opens as a popup, so its items
     /// are laid out in a window inside the same rounded frame; submenus show no arrow there.
     /// </summary>
-    private Window MenuPreview()
+    private Window MenuPreview(DockItem stack = null)
     {
-        var menu = new DockWindow(this, null, null).BuildMenu(Items.FirstOrDefault(), 0);
+        var dock = new DockWindow(this, null, null);
+        var menu = stack != null ? dock.BuildStackMenu(stack) : dock.BuildMenu(Items.FirstOrDefault(), 0);
         var items = menu.Items.Cast<object>().ToList();
         menu.Items.Clear();
         var list = new System.Windows.Controls.StackPanel();
@@ -137,11 +180,14 @@ internal sealed class DockManager
     /// <summary>Creates or closes windows according to the monitor option and the connected monitors.</summary>
     public void Rebuild()
     {
+        var all = Monitors.All();
         var targets = Config.AllMonitors && !IsScreenshot
-            ? Monitors.All().Select(m => m.Device).ToList()
+            ? all.Select(m => m.Device).ToList()
             : new List<string> { null };
         if (targets.Count == 0) targets.Add(null);
-        string key = string.Join("|", targets.Select(t => t ?? "*"));
+        // With its own icons per screen, each window shows the list of the screen it is on.
+        var docks = targets.Select(t => DockFor(Monitors.Pick(t ?? Config.Monitor), all)).ToList();
+        string key = string.Join("|", targets.Select((t, i) => (t ?? "*") + (docks[i] == null ? "" : "@" + docks[i].Id + docks[i].Device)));
 
         if (key == monitorKey && windows.Count == targets.Count)
         {
@@ -152,13 +198,83 @@ internal sealed class DockManager
 
         foreach (var w in windows) w.CloseQuietly();
         windows.Clear();
-        foreach (var device in targets)
+        for (int i = 0; i < targets.Count; i++)
         {
-            var w = new DockWindow(this, screenshotPath, device);
+            var w = new DockWindow(this, screenshotPath, targets[i], docks[i]);
             windows.Add(w);
             w.Show();
         }
         Application.Current.MainWindow = windows[0];
+    }
+
+    /// <summary>
+    /// The entry of the icons of a screen when every screen has its own (null otherwise, or without a screen). A
+    /// screen seen for the first time gets a copy of the shared icons; a known one is updated with its current name
+    /// and resolution.
+    /// </summary>
+    public MonitorDockConfig DockFor(MonitorInfo mon, IEnumerable<MonitorInfo> connected = null)
+    {
+        if (!Config.PerMonitor || mon == null) return null;
+        return DockFor(mon.Id, mon.Device, mon.Bounds.Width, mon.Bounds.Height,
+                       (connected ?? Monitors.All()).Select(m => m.Id).Where(id => !string.IsNullOrEmpty(id)).ToList());
+    }
+
+    /// <summary>The same, from what identifies a screen (the self-test uses it with made-up screens).</summary>
+    public MonitorDockConfig DockFor(string id, string device, int width, int height, ICollection<string> connectedIds)
+    {
+        if (!Config.PerMonitor) return null;
+        var dock = MonitorDockConfig.Find(Config.MonitorDocks, id, device, width, height, connectedIds);
+        bool changed = false;
+        if (dock == null)
+        {
+            dock = new MonitorDockConfig { Items = Config.Items.Select(c => c.Clone()).ToList() };
+            Config.MonitorDocks.Add(dock);
+            changed = true;
+        }
+        if (dock.Id != (id ?? "") && !string.IsNullOrEmpty(id) || dock.Device != (device ?? "") || dock.Width != width || dock.Height != height)
+        {
+            if (!string.IsNullOrEmpty(id)) dock.Id = id;
+            dock.Device = device ?? ""; dock.Width = width; dock.Height = height;
+            changed = true;
+        }
+        if (changed) SaveConfig();
+        return dock;
+    }
+
+    /// <summary>The live icons of a dock: those of its screen, or the shared ones (null).</summary>
+    public List<DockItem> ListFor(MonitorDockConfig dock)
+    {
+        if (dock == null) return Items;
+        if (!monitorLists.TryGetValue(dock, out var list))
+        {
+            list = dock.Items.Select(DockItem.From).ToList();
+            monitorLists[dock] = list;
+        }
+        return list;
+    }
+
+    /// <summary>The lists shown right now (each one once), or the shared one if no dock is open.</summary>
+    private List<List<DockItem>> ActiveLists()
+    {
+        var lists = windows.Select(w => w.Items).Distinct().ToList();
+        if (lists.Count == 0) lists.Add(Items);
+        return lists;
+    }
+
+    /// <summary>
+    /// The lists the settings window edits, with the screen each one belongs to: one per connected screen when each
+    /// has its own icons, otherwise only the shared one (screen null).
+    /// </summary>
+    public List<(MonitorInfo Monitor, List<DockItem> Items)> EditableLists()
+    {
+        var result = new List<(MonitorInfo, List<DockItem>)>();
+        if (Config.PerMonitor)
+        {
+            var all = Monitors.All();
+            foreach (var m in all) result.Add((m, ListFor(DockFor(m, all))));
+        }
+        if (result.Count == 0) result.Add((null, Items));
+        return result;
     }
 
     /// <summary>Deferred rebuild (e.g., when a monitor is connected or disconnected).</summary>
@@ -197,42 +313,105 @@ internal sealed class DockManager
         Config.Save();
     }
 
-    public void SaveItems()
+    /// <summary>Stores the order and content of a list of icons (the shared one by default).</summary>
+    public void SaveItems(List<DockItem> list = null)
     {
+        list ??= Items;
         // Pinned apps always come before unpinned running apps.
-        var ordered = Items.Where(i => !i.Transient).Concat(Items.Where(i => i.Transient)).ToList();
-        Items.Clear();
-        Items.AddRange(ordered);
-        Config.Items = Items.Where(i => !i.Transient).Select(i => i.Cfg).ToList();
+        var ordered = list.Where(i => !i.Transient).Concat(list.Where(i => i.Transient)).ToList();
+        list.Clear();
+        list.AddRange(ordered);
+        var stored = list.Where(i => !i.Transient).Select(i => i.Cfg).ToList();
+        if (list == Items) Config.Items = stored;
+        else
+        {
+            var dock = monitorLists.FirstOrDefault(p => p.Value == list).Key;
+            if (dock != null) dock.Items = stored;
+        }
         SaveConfig();
     }
 
     /// <summary>Number of pinned apps (they are at the start of <see cref="Items"/>).</summary>
-    public int PinnedCount => Items.Count(i => !i.Transient);
+    public int PinnedCount => PinnedCountOf(Items);
+
+    /// <summary>Number of pinned apps of a list (they are at its start).</summary>
+    public static int PinnedCountOf(List<DockItem> list) => list.Count(i => !i.Transient);
+
+    /// <summary>
+    /// Adds files, programs or shortcuts to a list at a position among its pinned icons. One already there is not
+    /// repeated; if it was an unpinned running app, it becomes pinned.
+    /// </summary>
+    public void AddPaths(List<DockItem> list, IEnumerable<string> paths, int index)
+    {
+        index = Math.Clamp(index, 0, PinnedCountOf(list));
+        foreach (var raw in paths)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) continue;
+            string p = raw.Trim();
+            var existing = list.FirstOrDefault(i => !i.IsStack && string.Equals(i.Cfg.Path, p, StringComparison.OrdinalIgnoreCase));
+            if (existing != null)
+            {
+                if (existing.Transient) { existing.Transient = false; list.Remove(existing); list.Insert(Math.Min(index++, PinnedCountOf(list)), existing); }
+                continue;
+            }
+            var cfg = new DockItemConfig { Name = DockItem.NiceName(p), Path = p };
+            list.Insert(index++, DockItem.From(cfg));
+        }
+        SaveItems(list);
+        RefreshRunning();
+        KickAll();
+    }
+
+    /// <summary>Puts a stack (new or edited) in a list: it replaces <paramref name="old"/>, or goes at <paramref name="index"/>.</summary>
+    public DockItem PutStack(List<DockItem> list, DockItemConfig stack, DockItem old, int index)
+    {
+        var item = DockItem.From(stack);
+        int at = old != null ? list.IndexOf(old) : -1;
+        if (at >= 0) list[at] = item;
+        else list.Insert(Math.Clamp(index, 0, PinnedCountOf(list)), item);
+        SaveItems(list);
+        KickAll();
+        return item;
+    }
+
+    /// <summary>Moves a pinned icon into a stack of the same list (at its end).</summary>
+    public void MoveIntoStack(List<DockItem> list, DockItem item, DockItem stack)
+    {
+        if (item.IsStack || !stack.IsStack || item.Transient) return;
+        var cfg = stack.Cfg.Clone();
+        cfg.Stack.Add(item.Cfg.Clone());
+        list.Remove(item);
+        PutStack(list, cfg, stack, 0);
+    }
 
     /// <summary>
     /// Scans the open windows once and updates every dock: unpinned running apps, running indicators.
     /// </summary>
     public void RefreshRunning()
     {
+        if (sample) return;
         Dictionary<string, List<IntPtr>> map;
         try { map = WindowTracker.Snapshot(); } catch { return; }
-        bool listChanged = SyncOpenApps();
-        bool dotsChanged = false;
-        foreach (var it in Items)
+        bool listChanged = false, dotsChanged = false;
+        foreach (var list in ActiveLists())
         {
-            bool run = it.ExePath != null && map.ContainsKey(WindowTracker.Normalize(it.ExePath));
-            if (run != it.Running) { it.Running = run; dotsChanged = true; }
+            listChanged |= SyncOpenApps(list);
+            foreach (var it in list.Concat(list.Where(i => i.Children != null).SelectMany(i => i.Children)))
+            {
+                bool run = it.ExePath != null && map.ContainsKey(WindowTracker.Normalize(it.ExePath));
+                if (run != it.Running) { it.Running = run; dotsChanged = true; }
+            }
         }
         if (listChanged) KickAll();
         else if (dotsChanged) foreach (var w in windows) w.View.InvalidateVisual();
     }
 
     /// <summary>
-    /// Appends to the end of the dock the running apps that are not pinned, and removes those that have since closed.
-    /// Uses the windows from the last <see cref="WindowTracker.Snapshot"/>. Returns true if the list changed.
+    /// Appends to the end of a dock the running apps that are not pinned, and removes those that have since closed.
+    /// Uses the windows from the last <see cref="WindowTracker.Snapshot"/>. Returns true if the list changed. An app
+    /// kept in a stack counts as pinned.
     /// </summary>
-    private bool SyncOpenApps()
+    private bool SyncOpenApps(List<DockItem> Items)
     {
         bool changed = false;
         var open = Config.ShowRunningApps && !IsScreenshot ? WindowTracker.LastApps : new List<WindowTracker.OpenApp>();
@@ -246,6 +425,9 @@ internal sealed class DockManager
                 || string.Equals(key, app.Aumid, StringComparison.OrdinalIgnoreCase);
         }
 
+        bool Pinned(WindowTracker.OpenApp app) =>
+            Items.Any(it => Covers(it, app) || (it.Children != null && it.Children.Any(c => Covers(c, app))));
+
         // Remove those that no longer have windows.
         for (int i = Items.Count - 1; i >= 0; i--)
             if (Items[i].Transient && !open.Any(a => Covers(Items[i], a))) { Items.RemoveAt(i); changed = true; }
@@ -253,7 +435,7 @@ internal sealed class DockManager
         // Add the new ones, in the order they appear.
         foreach (var app in open)
         {
-            if (Items.Any(it => Covers(it, app))) continue;
+            if (Pinned(app)) continue;
             string path = app.Launch.StartsWith(WindowTracker.AumidPrefix, StringComparison.Ordinal)
                 ? @"shell:AppsFolder\" + app.Launch.Substring(WindowTracker.AumidPrefix.Length)
                 : app.Launch;
@@ -269,10 +451,11 @@ internal sealed class DockManager
     /// <summary>Pins an unpinned running app to the dock, after the last pinned one.</summary>
     public void Pin(DockItem it)
     {
+        var list = ActiveLists().FirstOrDefault(l => l.Contains(it)) ?? Items;
         it.Transient = false;
-        Items.Remove(it);
-        Items.Insert(PinnedCount, it);
-        SaveItems();
+        list.Remove(it);
+        list.Insert(PinnedCountOf(list), it);
+        SaveItems(list);
         KickAll();
     }
 
@@ -322,16 +505,17 @@ internal sealed class DockManager
     public void OpenAbout()
     {
         if (about != null) { about.Activate(); return; }
-        about = new AboutWindow();
+        about = new AboutWindow(this);
         about.Closed += (s, e) => about = null;
         about.Show();
         about.Activate();
     }
 
-    /// <summary>Adds applications via the file dialog, at the end of the pinned ones.</summary>
-    public void AddWithDialog()
+    /// <summary>Adds applications via the file dialog to a list (the shared one by default), at the end of its pinned ones.</summary>
+    public void AddWithDialog(List<DockItem> list = null)
     {
-        if (windows.Count > 0) windows[0].AddWithDialog(PinnedCount);
+        list ??= Items;
+        if (windows.Count > 0) windows[0].AddWithDialog(PinnedCountOf(list), list);
     }
 
     private bool exiting;

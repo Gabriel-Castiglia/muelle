@@ -27,6 +27,9 @@ internal enum SetupState { Install, Upgrade, Maintenance, Uninstall, Newer }
 /// Bootstrapper application: talks to the WiX engine (detect, plan, apply) and drives the setup window.
 /// The engine calls back on its own thread; everything that touches the window goes through the dispatcher.
 /// Without a full user interface (/quiet, /passive, or an upgrade removing this version) it works on its own.
+/// Muelle's own updates (Updates.cs in the app) start it with "/quiet /norestart /muellewaitpid=&lt;pid&gt;
+/// /muellerelaunch=1": it waits for that Muelle to be gone before anything else, and at the end starts the installed
+/// Muelle again ("--updated", or "--update-failed=&lt;code&gt;" if nothing was installed).
 /// </summary>
 internal sealed class SetupApplication : BootstrapperApplication
 {
@@ -51,6 +54,10 @@ internal sealed class SetupApplication : BootstrapperApplication
     private SetupWindow window;
     private IntPtr windowHandle;
     private int exitCode;
+    /// <summary>Process id of the Muelle that started this update (/muellewaitpid=); 0 = none.</summary>
+    private int waitPid;
+    /// <summary>/muellerelaunch=1: start Muelle again when done.</summary>
+    private bool relaunch, relaunched;
 
     protected override void OnCreate(CreateEventArgs args)
     {
@@ -63,6 +70,8 @@ internal sealed class SetupApplication : BootstrapperApplication
         dispatcher = Dispatcher.CurrentDispatcher;
         Version = engine.GetVariableVersion("WixBundleVersion");
         Loc.Current = InitialLanguage();
+        ReadUpdateSwitches();
+        WaitForMuelle();
 
         DetectRelatedBundle += OnDetectRelatedBundle;
         DetectPackageComplete += OnDetectPackageComplete;
@@ -101,6 +110,51 @@ internal sealed class SetupApplication : BootstrapperApplication
         }
         catch { }
         return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "es" ? UiLanguage.Es : UiLanguage.En;
+    }
+
+    // ---------------- Muelle's own updates ----------------
+    /// <summary>Reads /muellewaitpid=&lt;pid&gt; and /muellerelaunch=1 (also with "-" instead of "/").</summary>
+    private void ReadUpdateSwitches()
+    {
+        var args = new List<string>();
+        try { args.AddRange(Command.ParseCommandLine().UnknownCommandLineArgs ?? Array.Empty<string>()); } catch { }
+        if (args.Count == 0 && !string.IsNullOrEmpty(Command.CommandLine)) args.AddRange(Command.CommandLine.Split(' '));
+        foreach (var raw in args)
+        {
+            string a = raw.Trim().Trim('"').TrimStart('/', '-').ToLowerInvariant();
+            if (a.StartsWith("muellewaitpid=")) int.TryParse(a.Substring("muellewaitpid=".Length), out waitPid);
+            else if (a == "muellerelaunch=1") relaunch = true;
+        }
+        if (waitPid > 0 || relaunch) engine.Log(LogLevel.Standard, $"Muelle setup: update started by Muelle (pid {waitPid}, relaunch {relaunch}).");
+    }
+
+    /// <summary>Waits (up to a minute) for the Muelle that started the update to finish closing.</summary>
+    private void WaitForMuelle()
+    {
+        if (waitPid <= 0) return;
+        try
+        {
+            using var p = Process.GetProcessById(waitPid);
+            if (!p.WaitForExit(60000)) engine.Log(LogLevel.Standard, "Muelle setup: Muelle did not close in 60 s; going on.");
+        }
+        catch (ArgumentException) { } // already gone
+        catch (Exception ex) { engine.Log(LogLevel.Standard, "Muelle setup: could not wait for Muelle: " + ex.Message); }
+    }
+
+    /// <summary>Starts the installed Muelle again after an update it asked for, saying how it went.</summary>
+    private void RelaunchMuelle(int status)
+    {
+        if (!relaunch || relaunched) return;
+        relaunched = true;
+        try
+        {
+            string exe = Path.Combine(InstallFolder, "Muelle.exe");
+            if (!File.Exists(exe)) { engine.Log(LogLevel.Standard, "Muelle setup: no Muelle.exe to start again."); return; }
+            string arg = status >= 0 ? "--updated" : "--update-failed=0x" + status.ToString("X8");
+            Process.Start(new ProcessStartInfo(exe, arg) { UseShellExecute = false, WorkingDirectory = InstallFolder });
+            engine.Log(LogLevel.Standard, "Muelle setup: started Muelle again (" + arg + ").");
+        }
+        catch (Exception ex) { engine.Log(LogLevel.Standard, "Muelle setup: could not start Muelle again: " + ex.Message); }
     }
 
     // ---------------- Detect ----------------
@@ -235,6 +289,7 @@ internal sealed class SetupApplication : BootstrapperApplication
     {
         exitCode = status;
         bool canceled = Canceled || status == UserCanceled;
+        RelaunchMuelle(status);
         if (!Interactive)
         {
             dispatcher.BeginInvoke(new Action(() => dispatcher.InvokeShutdown()));

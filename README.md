@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/dock-en.png" width="720" alt="The dock at the bottom of the screen"></p>
 
-Gabriel Castiglia · November 11, 2026 · version 2.1.0 · GPL-2.0-only
+Gabriel Castiglia · November 20, 2026 · version 2.2.0 · GPL-2.0-only
 
 English · [Español](README.es.md)
 
@@ -17,8 +17,9 @@ Muelle is an application dock for Windows 10 and 11, written in C# with .NET 10 
 floating dock with magnification under the pointer, in the style of macOS, or a fixed panel from edge
 to edge, in the style of Ubuntu. Its interface is available in English and Spanish; it starts in the
 language chosen during setup (English when it runs without installation) and can be changed at any
-time. It can be light, dark or follow Windows, in one of twelve colours. "Muelle" is the Spanish word for a
-dock, the place where ships moor.
+time. It can be light, dark or follow Windows, in one of twelve colours. Several shortcuts can share one icon
+as a stack, each screen can have its own icons, and new versions install themselves. "Muelle" is the Spanish
+word for a dock, the place where ships moor.
 
 ## Requirements
 
@@ -51,7 +52,9 @@ time.
 
 Running a newer `muelle-setup.exe` updates an installed Muelle and keeps each user's settings. If
 Muelle is running, setup closes it before replacing its files. An older version cannot be installed
-over a newer one.
+over a newer one. An installed Muelle can also update itself: see [New versions](#new-versions).
+
+For an installation without windows: `muelle-setup.exe /quiet` (Windows still asks for administrator rights).
 
 To start Muelle with Windows, turn on Settings → Behavior → "Start Muelle when Windows starts".
 
@@ -82,13 +85,44 @@ For an uninstall without windows: `muelle-setup.exe /uninstall /quiet`.
   Panel can be added too.
 - Icons are reordered by dragging them along the dock and removed by dragging them out of it. "Lock
   icons" prevents both, to avoid accidental changes.
+- A stack is one icon that holds several shortcuts: a click unfolds them beside it. See [Stacks](#stacks).
 - When the icons do not fit on a screen, they shrink on that screen only.
 - With a full-screen application (a video, a game) the dock moves behind it.
 
 Right-clicking an icon offers Show (or Open), Open another window, Run as administrator, Open file
-location, End task (for applications with their own processes), and Keep in dock or Remove from dock.
-Right-clicking the dock offers Add application…, the switch between floating dock and fixed panel,
-Lock icons, the language and appearance menus, Settings…, About Muelle… and Quit Muelle.
+location, End task (for applications with their own processes), Move to stack (when the dock has a
+stack), and Keep in dock or Remove from dock. Right-clicking the dock offers Add application…, New
+stack…, the switch between floating dock and fixed panel, Lock icons, the language and appearance menus,
+Settings…, Check for updates, About Muelle… and Quit Muelle.
+
+## Stacks
+
+A stack keeps several shortcuts under one icon, like the stacks of the Mac dock. A click on it unfolds its
+shortcuts beside the icon, each with its own icon; a click on one opens it, or brings its window to the
+front if it is already open. "Edit stack…" at the end of the list opens the stack editor.
+
+![An open stack](docs/images/stack-en.png)
+
+- "New stack…" in the dock menu, or in Settings → Dock applications, creates one.
+- In the editor: the name of the stack; its icon, either one of its own ("Choose icon…": an `.ico`, a
+  program or a picture) or "Automatic icon", its first four shortcuts in a grid; and its shortcuts, with
+  Add…, Remove, Move up and Move down. Nothing changes in the dock until "Save".
+- "Move to stack" in the menu of an icon puts that icon at the end of a stack.
+- A stack is moved and removed like any other icon. An open app that is in a stack does not appear again
+  at the end of the dock.
+
+## Each screen with its own icons
+
+With the dock on every screen, by default each copy shows the same icons. Settings → Location → "Each
+screen has its own icons" gives every screen its own list. A screen seen for the first time starts with a
+copy of the common icons, and from then on its icons are added, removed and reordered on its own dock, or
+in Settings → Dock applications, which then has an "Icons of" list to choose the screen.
+
+Muelle recognizes a screen by the name Windows gives the physical monitor and the connector it is plugged
+into, so it keeps its icons after a restart or when the screens are reordered; if Windows gives no such
+name, by its display name and resolution. When a screen is disconnected its icons are kept in the settings
+and come back when it is connected again. Turning the option off goes back to the common icons, and the
+icons of each screen are kept for the next time.
 
 ## Settings
 
@@ -99,12 +133,12 @@ Right-click the dock → Settings…. Every change applies at once.
 | Group | Options |
 |---|---|
 | Style | Floating dock (Mac style) or fixed panel (Ubuntu style); panel opacity. |
-| Location | Screen edge; the primary screen, every screen (one copy on each) or a specific screen. |
-| Behavior | Reserve the screen strip, hide automatically, show open apps that are not pinned, lock the icons, start with Windows, tell me when there is a new version. |
+| Location | Screen edge; the primary screen, every screen (one copy on each) or a specific screen; each screen with its own icons. |
+| Behavior | Reserve the screen strip, hide automatically, show open apps that are not pinned, lock the icons, start with Windows, look for new versions. |
 | Appearance | As Windows, light or dark; one of twelve colours. |
 | Icons | Size (24 to 96 px), magnification under the pointer (up to twice the size), background of the floating dock. |
 | Language | English or Spanish. |
-| Dock applications | The list of pinned applications, with Add, Remove, Move up and Move down. |
+| Dock applications | The list of pinned applications and stacks, with Add, New stack, Edit stack (or a double click), Remove, Move up and Move down; with its own icons per screen, the screen whose icons are listed. |
 
 ## Appearance
 
@@ -124,10 +158,24 @@ A settings file from an earlier version keeps the dark dock it had; a new instal
 
 ## New versions
 
-Once a day, Muelle asks GitHub for the number of the latest version. If it is newer, a small window says so
-and offers to open the download page; Muelle never downloads or installs anything by itself. The request
-carries nothing but the program name and its version. Turn it off in Settings → Behavior → "Tell me when
-there is a new version"; About Muelle… → "Check for a new version" asks at any time.
+Once a day, Muelle asks GitHub for its latest release; "Check for updates", in the dock menu and in About
+Muelle…, asks at any time. If there is a newer version, a small window asks one question: Update now, What
+is new (the release page) or Later. After "Update now" everything happens by itself:
+
+1. The setup of the release, `muelle-setup.exe`, is downloaded to `%TEMP%\MuelleUpdate` and checked against
+   the `SHA256SUMS.txt` of the same release. A file that does not match is deleted and never run.
+2. Muelle notes how it was started and closes.
+3. The setup installs in silence, with the language chosen when Muelle was installed; Windows asks for
+   administrator rights, as for any installation. It waits for Muelle to be gone, and closes any other copy
+   that runs from the install folder.
+4. Muelle opens again, with the same arguments, and says that it was updated.
+
+If anything fails, nothing is installed: Muelle keeps going, or opens again, and says what happened (for
+example, when the administrator permission is refused). A copy of `Muelle.exe` that runs without
+installation cannot replace itself; for it the window only offers the release page.
+
+The requests carry nothing but the program name and its version. The daily check is turned off in Settings
+→ Behavior.
 
 ## Language
 
@@ -143,6 +191,7 @@ Calculator…) follow the interface language.
 | Installed program | `C:\Program Files\Muelle`, with `LICENSE.txt`, `README.txt` and `README.es.txt` |
 | Settings | `%APPDATA%\Muelle\config.json` (it can be deleted to start over) |
 | Error log, if anything fails | `%APPDATA%\Muelle\muelle.log`, kept under 512 KB (the previous part in `muelle.old.log`) |
+| Update being installed | `%TEMP%\MuelleUpdate` (the setup and how Muelle was started) |
 
 ## Known limitations
 
@@ -160,13 +209,20 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1
 ```
 
 The first command builds the program. The second builds everything in `dist`: the stand-alone
-`Muelle.exe`, `muelle.msi` and `muelle-setup.exe`; the WiX Toolset 5 is restored automatically as a
-NuGet package. The version is set in one place, `src\Muelle\Muelle.csproj`, and the installers and the
+`Muelle.exe`, `muelle.msi`, `muelle-setup.exe` and `SHA256SUMS.txt`; the WiX Toolset 5 is restored
+automatically as a NuGet package. A release must carry `muelle-setup.exe` and `SHA256SUMS.txt` with these
+names, since the updates look for them.
+
+`Muelle.exe --self-test <log>` checks the settings file, the stacks, the icons per screen and the update
+functions (version comparison, hashes, the setup's command line), and writes one line per check to the
+log; its exit code is the number of failures. It works on a throwaway settings folder in `%TEMP%` that it
+deletes at the end, shows no window and leaves a running Muelle alone. With `--online` it also downloads
+the setup of the latest release and checks it against its `SHA256SUMS.txt`, without running it. The version is set in one place, `src\Muelle\Muelle.csproj`, and the installers and the
 About window read it from there.
 
-`scripts\screenshots.ps1` renders the images in `docs\images` (from a desktop session: over SSH the dock
-image comes out empty), and `scripts/manual.sh` (on macOS, with pandoc and Google Chrome) builds the PDF
-manuals and `README.txt` and `README.es.txt` from this file and `README.es.md`. `scripts/make_icon.py`
+`scripts\screenshots.ps1` renders the images in `docs\images` with example apps (from a desktop session:
+over SSH the dock image comes out empty), and `scripts/manual.sh` (with pandoc and Google Chrome, on macOS
+or in Git Bash on Windows) builds the PDF manuals and `README.txt` and `README.es.txt` from this file and `README.es.md`. `scripts/make_icon.py`
 draws the icon in its twelve colours from the engraving in `assets/` (Python 3 with numpy, opencv-python
 and Pillow).
 

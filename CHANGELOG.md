@@ -2,6 +2,40 @@
 
 All notable changes to Muelle. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 2.2.0 - 2026-11-20
+
+### Added
+
+- Updates that install themselves. Once a day (if the option is on) and with "Check for updates" (dock menu
+  and About Muelle…), Muelle asks GitHub for its latest release and, if it is newer, asks one question:
+  Update now, What is new or Later. Then everything happens alone: the setup of the release is downloaded
+  and checked against the release's `SHA256SUMS.txt` (a file that does not match is deleted and never run),
+  Muelle closes, the setup installs in silence keeping the language chosen at installation, and Muelle opens
+  again with the same arguments. If anything fails, Muelle keeps going or comes back and says what happened.
+  A copy that runs without installation only offers the release page.
+- The setup takes `/muellewaitpid=<pid>` (waits for that Muelle to close before touching any file) and
+  `/muellerelaunch=1` (starts Muelle again when done, saying whether the update went in), which the updates
+  use together with `/quiet`.
+- Stacks: one dock icon that unfolds several shortcuts beside it, like the stacks of the Mac dock. Created
+  with "New stack…" (dock menu or Settings), with a name, an icon of its own or its first shortcuts in a
+  grid, and shortcuts that are added, removed and reordered in the stack editor. "Move to stack" in the
+  menu of an icon puts it in a stack.
+- Each screen with its own icons (Settings → Location). A new screen starts with a copy of the common
+  icons; screens are recognized by the device name of the monitor and its connector (or by display name and
+  resolution), and the icons of a disconnected screen are kept and come back with it. Off by default: every
+  screen shows the same dock, as before.
+- `Muelle.exe --self-test <log>`: checks the settings file, stacks, icons per screen and the update
+  functions on a throwaway configuration, without windows; the exit code is the number of failures.
+  `--online` also checks the setup of the latest release against its hashes, without running it.
+- `scripts\build.ps1` writes `SHA256SUMS.txt` next to the installers.
+
+### Changed
+
+- The images of the manuals show example apps and a stack, rendered from the default settings
+  (`--sample`), never the apps of whoever renders them; there is a new image of an open stack.
+- `scripts/manual.sh` also runs in Git Bash on Windows (Chrome is taken from `CHROME`).
+- Text fields follow the light or dark appearance.
+
 ## 2.1.0 - 2026-11-11
 
 ### Added

@@ -14,6 +14,8 @@
 #   LICENSE.txt       the license, next to the executable
 #   muelle.msi        MSI package (silent install: msiexec /i muelle.msi /qn)
 #   muelle-setup.exe  setup program in English and Spanish that contains the MSI
+#   SHA256SUMS.txt    the SHA-256 of the three programs ("hash  name" per line); Muelle checks the setup
+#                     against it before an update installs itself (src\Muelle\Updates.cs)
 # Requires the .NET 10 SDK; the WiX Toolset is restored automatically as a NuGet package.
 # The version is read from src\Muelle\Muelle.csproj, the only place where it is set.
 
@@ -47,4 +49,10 @@ if ($LASTEXITCODE) { throw 'Setup .exe build failed.' }
 
 # 4) The stand-alone executable and its license, next to the installers.
 Copy-Item (Join-Path $publish 'Muelle.exe'), (Join-Path $publish 'LICENSE.txt') $dist
+
+# 5) The hashes that go with the release, in the format of sha256sum (LF line ends).
+$sums = foreach ($name in 'muelle-setup.exe', 'muelle.msi', 'Muelle.exe') {
+    (Get-FileHash (Join-Path $dist $name) -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $name
+}
+[IO.File]::WriteAllText((Join-Path $dist 'SHA256SUMS.txt'), ($sums -join "`n") + "`n")
 Get-ChildItem $dist -Include *.exe, *.msi, *.txt -Recurse | Select-Object Name, Length

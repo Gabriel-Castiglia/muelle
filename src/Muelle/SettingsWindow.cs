@@ -37,6 +37,16 @@ internal sealed class SettingsWindow : Window
     private ComboBox monitorCombo;
     private StackPanel backdropGroup, zoomRow, panelRow;
     private ScrollViewer scroller;
+    /// <summary>Which list the "Dock applications" section edits, when each screen has its own (index in <see cref="DockManager.EditableLists"/>).</summary>
+    private int editing;
+    private List<DockItem> CurrentList
+    {
+        get
+        {
+            var lists = manager.EditableLists();
+            return lists[Math.Clamp(editing, 0, lists.Count - 1)].Items;
+        }
+    }
 
     public SettingsWindow(DockManager manager)
     {
@@ -139,7 +149,7 @@ internal sealed class SettingsWindow : Window
         box.Children.Add(sideRow);
 
         box.Children.Add(new TextBlock { Text = tr("Mostrar el dock en:", "Show the dock on:"), Margin = new Thickness(0, 0, 0, 2) });
-        var monitors = Monitors.All();
+        var monitors = Monitors.Listed();
         bool specific = !Config.AllMonitors && !string.IsNullOrEmpty(Config.Monitor);
         monitorCombo = new ComboBox { Margin = new Thickness(22, 4, 0, 0), HorizontalAlignment = HorizontalAlignment.Stretch };
         box.Children.Add(Radio("mon", tr("Solo en la pantalla principal", "The primary screen only"), null, !Config.AllMonitors && !specific,
@@ -172,6 +182,16 @@ internal sealed class SettingsWindow : Window
             Apply();
         };
         box.Children.Add(monitorCombo);
+        box.Children.Add(Check(tr("Cada pantalla con sus propios iconos", "Each screen has its own icons"), Config.PerMonitor, v =>
+        {
+            Config.PerMonitor = v;
+            editing = 0;
+            Apply();
+            Dispatcher.BeginInvoke(new Action(Rebuild));
+        }));
+        box.Children.Add(Hint(tr("Una pantalla nueva empieza con una copia de los iconos comunes. Si se desconecta, sus iconos se guardan y vuelven con ella.",
+                                 "A new screen starts with a copy of the common icons. If it is disconnected, its icons are kept and come back with it."),
+                              new Thickness(46, 0, 0, 0)));
         return card;
     }
 
@@ -245,8 +265,8 @@ internal sealed class SettingsWindow : Window
             DockConfig.SetStartup(v);
             manager.SaveConfig();
         }));
-        box.Children.Add(Check(tr("Avisar cuando haya una versión nueva (se consulta GitHub una vez al día)",
-                                  "Tell me when there is a new version (GitHub is asked once a day)"), Config.CheckUpdates, v =>
+        box.Children.Add(Check(tr("Buscar versiones nuevas una vez al día (se consulta GitHub; se instalan solo si se acepta)",
+                                  "Look for new versions once a day (GitHub is asked; they install only if accepted)"), Config.CheckUpdates, v =>
         {
             Config.CheckUpdates = v;
             manager.SaveConfig();
@@ -334,21 +354,43 @@ internal sealed class SettingsWindow : Window
         box.Children.Add(Hint(tr("También se pueden agregar arrastrando un acceso directo o un .exe sobre el dock, y reordenar o quitar arrastrando los iconos.",
                                  "Apps can also be added by dropping a shortcut or an .exe on the dock, and reordered or removed by dragging the icons."),
                               new Thickness(0)));
+        // With its own icons per screen: which screen's icons are listed.
+        var lists = manager.EditableLists();
+        if (Config.PerMonitor && lists.Count > 0 && lists[0].Monitor != null)
+        {
+            var screen = new ComboBox();
+            for (int i = 0; i < lists.Count; i++)
+            {
+                var m = lists[i].Monitor;
+                screen.Items.Add($"{tr("Pantalla", "Screen")} {i + 1}  ·  {m.Bounds.Width}×{m.Bounds.Height}" + (m.Primary ? tr("  (principal)", "  (primary)") : ""));
+            }
+            editing = Math.Clamp(editing, 0, lists.Count - 1);
+            screen.SelectedIndex = editing;
+            screen.SelectionChanged += (s, e) => { if (screen.SelectedIndex >= 0) { editing = screen.SelectedIndex; RefreshApps(0); } };
+            var screenRow = Row(tr("Iconos de:", "Icons of:"), screen, null);
+            screenRow.Margin = new Thickness(0, 8, 0, 0);
+            box.Children.Add(screenRow);
+        }
         appList = new ListBox { Height = 150, Margin = new Thickness(0, 6, 0, 8) };
+        appList.MouseDoubleClick += (s, e) => WithSelected((it, i) => { if (it.IsStack) StackWindow.Edit(manager, CurrentList, it, i); });
         box.Children.Add(appList);
 
         var buttons = new WrapPanel();
-        buttons.Children.Add(Button(tr("Agregar…", "Add…"), () => { manager.AddWithDialog(); RefreshApps(); }));
-        buttons.Children.Add(Button(tr("Quitar", "Remove"), () => WithSelected((it, i) => { manager.Items.RemoveAt(i); ItemsChanged(i - 1); })));
+        buttons.Children.Add(Button(tr("Agregar…", "Add…"), () => { manager.AddWithDialog(CurrentList); RefreshApps(); }));
+        buttons.Children.Add(Button(tr("Nueva pila…", "New stack…"), () => StackWindow.Edit(manager, CurrentList, null, DockManager.PinnedCountOf(CurrentList))));
+        buttons.Children.Add(Button(tr("Editar pila…", "Edit stack…"), () => WithSelected((it, i) => { if (it.IsStack) StackWindow.Edit(manager, CurrentList, it, i); })));
+        buttons.Children.Add(Button(tr("Quitar", "Remove"), () => WithSelected((it, i) => { CurrentList.RemoveAt(i); ItemsChanged(i - 1); })));
         buttons.Children.Add(Button(tr("Subir", "Move up"), () => WithSelected((it, i) =>
         {
             if (i == 0) return;
-            manager.Items.RemoveAt(i); manager.Items.Insert(i - 1, it); ItemsChanged(i - 1);
+            var l = CurrentList;
+            l.RemoveAt(i); l.Insert(i - 1, it); ItemsChanged(i - 1);
         })));
         buttons.Children.Add(Button(tr("Bajar", "Move down"), () => WithSelected((it, i) =>
         {
-            if (i >= manager.PinnedCount - 1) return;
-            manager.Items.RemoveAt(i); manager.Items.Insert(i + 1, it); ItemsChanged(i + 1);
+            var l = CurrentList;
+            if (i >= DockManager.PinnedCountOf(l) - 1) return;
+            l.RemoveAt(i); l.Insert(i + 1, it); ItemsChanged(i + 1);
         })));
         box.Children.Add(buttons);
         return card;
@@ -404,20 +446,22 @@ internal sealed class SettingsWindow : Window
     {
         int keep = select >= 0 ? select : appList.SelectedIndex;
         appList.Items.Clear();
-        foreach (var it in manager.Items.Where(i => !i.Transient)) appList.Items.Add(it.Name); // pinned ones only
+        foreach (var it in CurrentList.Where(i => !i.Transient)) // pinned ones only
+            appList.Items.Add(it.IsStack ? $"{it.Name}   ·   {tr("pila", "stack")} ({it.Children.Count})" : it.Name);
         if (appList.Items.Count > 0) appList.SelectedIndex = Math.Clamp(keep, 0, appList.Items.Count - 1);
     }
 
     private void WithSelected(Action<DockItem, int> action)
     {
         int i = appList.SelectedIndex;
-        if (i < 0 || i >= manager.PinnedCount) return;
-        action(manager.Items[i], i);
+        var list = CurrentList;
+        if (i < 0 || i >= DockManager.PinnedCountOf(list)) return;
+        action(list[i], i);
     }
 
     private void ItemsChanged(int select)
     {
-        manager.SaveItems();
+        manager.SaveItems(CurrentList);
         manager.KickAll();
         RefreshApps(Math.Max(0, select));
     }

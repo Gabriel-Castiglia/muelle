@@ -28,8 +28,11 @@ internal sealed class AboutWindow : Window
     private const string LicenseUrl = "https://www.gnu.org/licenses/old-licenses/gpl-2.0.html";
     public const string Repository = "https://github.com/Gabriel-Castiglia/muelle";
 
-    public AboutWindow()
+    private readonly DockManager manager;
+
+    public AboutWindow(DockManager manager)
     {
+        this.manager = manager;
         Width = 480;
         SizeToContent = SizeToContent.Height;
         ResizeMode = ResizeMode.NoResize;
@@ -90,7 +93,7 @@ internal sealed class AboutWindow : Window
 
         // New versions: asked on request; the answer shows on the line above the buttons.
         var updateRow = new DockPanel { Margin = new Thickness(0, 0, 0, 16) };
-        var check = Button(tr("Buscar versión nueva", "Check for a new version"), null);
+        var check = Button(tr("Buscar actualizaciones", "Check for updates"), null);
         check.Margin = new Thickness(0, 0, 12, 0);
         var status = Muted("", 12, new Thickness(0));
         status.VerticalAlignment = VerticalAlignment.Center;
@@ -98,17 +101,7 @@ internal sealed class AboutWindow : Window
         {
             check.IsEnabled = false;
             status.Text = tr("Consultando GitHub…", "Asking GitHub…");
-            try
-            {
-                var latest = await Updates.LatestAsync();
-                if (latest != null && latest > Updates.Current)
-                {
-                    status.Text = tr($"Está la versión {latest}.", $"Version {latest} is out.");
-                    UpdateWindow.ShowNotice(latest);
-                }
-                else status.Text = tr("Tenés la última versión.", "You have the latest version.");
-            }
-            catch { status.Text = tr("No se pudo consultar GitHub.", "GitHub could not be reached."); }
+            status.Text = await Updates.CheckAsync(manager, interactive: false);
             check.IsEnabled = true;
         };
         DockPanel.SetDock(check, Dock.Left);

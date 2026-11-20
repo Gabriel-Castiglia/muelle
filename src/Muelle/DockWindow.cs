@@ -31,7 +31,10 @@ internal sealed class DockWindow : Window
 {
     public DockManager Manager { get; }
     public DockConfig Config => Manager.Config;
-    public List<DockItem> Items => Manager.Items;
+    /// <summary>The icons of this dock: those of its screen (when each screen has its own) or the shared ones.</summary>
+    public List<DockItem> Items => Manager.ListFor(Dock);
+    /// <summary>The entry of this dock's screen in the configuration; null = it shows the shared icons.</summary>
+    public MonitorDockConfig Dock { get; }
     public DockView View { get; }
     public bool MenuOpen { get; private set; }
     public bool KeepAnimating => screenshotPath != null;
@@ -49,9 +52,10 @@ internal sealed class DockWindow : Window
     private int frames;
     private bool shotTaken, closingQuietly;
 
-    public DockWindow(DockManager manager, string screenshotPath, string monitorDevice)
+    public DockWindow(DockManager manager, string screenshotPath, string monitorDevice, MonitorDockConfig dock = null)
     {
         Manager = manager;
+        Dock = dock;
         this.screenshotPath = screenshotPath;
         this.monitorDevice = monitorDevice;
 
@@ -316,6 +320,7 @@ internal sealed class DockWindow : Window
     /// <summary>Click on an icon: brings its window to the front (or minimizes it), or launches the app with a bounce.</summary>
     public void ActivateItem(DockItem it, bool newInstance)
     {
+        if (it.IsStack) { ShowStack(it); return; }
         if (!newInstance && it.ExePath != null)
         {
             var map = WindowTracker.Snapshot();
@@ -333,7 +338,7 @@ internal sealed class DockWindow : Window
         Launch(it, false);
     }
 
-    private void Launch(DockItem it, bool asAdmin)
+    private void Launch(DockItem it, bool asAdmin, DockItem bounce = null)
     {
         try
         {
@@ -346,7 +351,7 @@ internal sealed class DockWindow : Window
             }
             if (asAdmin) psi.Verb = "runas";
             Process.Start(psi);
-            View.StartBounce(it);
+            View.StartBounce(bounce ?? it);
         }
         catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
         {
@@ -390,46 +395,28 @@ internal sealed class DockWindow : Window
     }
 
     // ---------------- Editing the list ----------------
-    public void AddPaths(IEnumerable<string> paths, int index)
-    {
-        index = Math.Clamp(index, 0, Manager.PinnedCount);
-        foreach (var raw in paths)
-        {
-            if (string.IsNullOrWhiteSpace(raw)) continue;
-            string p = raw.Trim();
-            var existing = Items.FirstOrDefault(i => string.Equals(i.Cfg.Path, p, StringComparison.OrdinalIgnoreCase));
-            if (existing != null)
-            {
-                if (existing.Transient) { existing.Transient = false; Items.Remove(existing); Items.Insert(Math.Min(index++, Manager.PinnedCount), existing); }
-                continue;
-            }
-            var cfg = new DockItemConfig { Name = DockItem.NiceName(p), Path = p };
-            Items.Insert(index++, DockItem.From(cfg));
-        }
-        Manager.SaveItems();
-        Manager.RefreshRunning();
-        Manager.KickAll();
-    }
+    public void AddPaths(IEnumerable<string> paths, int index) => Manager.AddPaths(Items, paths, index);
 
     public void RemoveItem(DockItem it)
     {
         if (it.Transient) return; // an unpinned running app goes away by itself when it closes
         Items.Remove(it);
-        Manager.SaveItems();
+        Manager.SaveItems(Items);
         Manager.KickAll();
     }
 
     public void MoveItem(DockItem it, int index)
     {
         // Dragging an unpinned running app into the pinned ones pins it (as in macOS).
-        if (it.Transient && index <= Manager.PinnedCount) it.Transient = false;
+        if (it.Transient && index <= DockManager.PinnedCountOf(Items)) it.Transient = false;
         Items.Remove(it);
         Items.Insert(Math.Clamp(index, 0, Items.Count), it);
-        Manager.SaveItems();
+        Manager.SaveItems(Items);
         Manager.KickAll();
     }
 
-    public void AddWithDialog(int index)
+    /// <summary>The file dialog that adds apps to a list (this dock's by default).</summary>
+    public void AddWithDialog(int index, List<DockItem> target = null)
     {
         var dlg = new Microsoft.Win32.OpenFileDialog
         {
@@ -441,8 +428,71 @@ internal sealed class DockWindow : Window
             InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu),
         };
         Native.SetForegroundWindow(hwnd);
-        if (dlg.ShowDialog(this) == true) AddPaths(dlg.FileNames, index);
+        if (dlg.ShowDialog(this) == true) Manager.AddPaths(target ?? Items, dlg.FileNames, index);
     }
+
+    // ---------------- Stacks ----------------
+    /// <summary>Unfolds a stack next to its icon: its shortcuts, and at the end the way to edit it.</summary>
+    public void ShowStack(DockItem stack)
+    {
+        var menu = BuildStackMenu(stack);
+        menu.Opened += (s, e) => { MenuOpen = true; View.Kick(); };
+        menu.Closed += (s, e) => { MenuOpen = false; View.Kick(); };
+        Native.SetForegroundWindow(hwnd);
+        menu.PlacementTarget = View;
+        // It opens away from the screen edge, beside the icon.
+        menu.Placement = Config.Edge switch
+        {
+            DockEdge.Left => PlacementMode.Right, DockEdge.Right => PlacementMode.Left,
+            DockEdge.Top => PlacementMode.Bottom, _ => PlacementMode.Top,
+        };
+        var r = View.IconLocalRect(stack);
+        if (r.HasValue) menu.PlacementRectangle = r.Value;
+        menu.IsOpen = true;
+    }
+
+    /// <summary>The menu a stack unfolds: each shortcut with its icon (a click opens it), then "Edit stack…".</summary>
+    public ContextMenu BuildStackMenu(DockItem stack)
+    {
+        var menu = new ContextMenu { Placement = PlacementMode.MousePoint };
+        if (stack.Children.Count == 0)
+            menu.Items.Add(new MenuItem { Header = tr("La pila está vacía", "The stack is empty"), IsEnabled = false });
+        foreach (var child in stack.Children)
+        {
+            var c = child;
+            // The menu style has no icon column: the icon goes in the header, beside the name.
+            var header = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(-20, 3, 0, 3) };
+            var image = new Image { Source = c.Icon, Width = 28, Height = 28, Margin = new Thickness(0, 0, 10, 0) };
+            RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+            header.Children.Add(image);
+            header.Children.Add(new TextBlock { Text = c.Name, VerticalAlignment = VerticalAlignment.Center });
+            var mi = new MenuItem { Header = header };
+            mi.Click += (s, e) => ActivateChild(c, stack);
+            menu.Items.Add(mi);
+        }
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Cmd(tr("Editar pila…", "Edit stack…"), () => EditStack(stack)));
+        return menu;
+    }
+
+    /// <summary>A shortcut of a stack: shows its window if it is open, otherwise opens it; the stack icon bounces.</summary>
+    private void ActivateChild(DockItem child, DockItem stack)
+    {
+        if (child.ExePath != null)
+        {
+            var map = WindowTracker.Snapshot();
+            if (map.TryGetValue(WindowTracker.Normalize(child.ExePath), out var wins) && wins.Count > 0)
+            {
+                if (Native.IsIconic(wins[0])) Native.ShowWindow(wins[0], Native.SW_RESTORE);
+                Native.SetForegroundWindow(wins[0]);
+                return;
+            }
+        }
+        Launch(child, false, stack);
+    }
+
+    /// <summary>Opens the stack editor for a stack of this dock, or for a new one (null) at a position.</summary>
+    public void EditStack(DockItem stack, int index = -1) => StackWindow.Edit(Manager, Items, stack, index < 0 ? DockManager.PinnedCountOf(Items) : index);
 
     // ---------------- Right-click menu ----------------
     /// <summary>Short menu: actions on the icon, adding apps, and access to the settings window.</summary>
@@ -461,7 +511,15 @@ internal sealed class DockWindow : Window
     {
         var menu = new ContextMenu { Placement = PlacementMode.MousePoint };
 
-        if (item != null)
+        if (item != null && item.IsStack)
+        {
+            menu.Items.Add(new MenuItem { Header = item.Name, IsEnabled = false, FontWeight = FontWeights.SemiBold });
+            menu.Items.Add(Cmd(tr("Abrir la pila", "Open the stack"), () => ShowStack(item)));
+            menu.Items.Add(Cmd(tr("Editar pila…", "Edit stack…"), () => EditStack(item)));
+            menu.Items.Add(Cmd(tr("Quitar del dock", "Remove from dock"), () => RemoveItem(item)));
+            menu.Items.Add(new Separator());
+        }
+        else if (item != null)
         {
             menu.Items.Add(new MenuItem { Header = item.Name, IsEnabled = false, FontWeight = FontWeights.SemiBold });
             menu.Items.Add(Cmd(item.Running ? tr("Mostrar", "Show") : tr("Abrir", "Open"), () => ActivateItem(item, false)));
@@ -471,11 +529,23 @@ internal sealed class DockWindow : Window
             if (item.Running && item.ExePath != null && HasKillableProcess(item))
                 menu.Items.Add(Cmd(tr("Finalizar tarea", "End task"), () => EndTask(item)));
             if (item.Transient) menu.Items.Add(Cmd(tr("Mantener en el dock", "Keep in dock"), () => Manager.Pin(item)));
-            else menu.Items.Add(Cmd(tr("Quitar del dock", "Remove from dock"), () => RemoveItem(item)));
+            else
+            {
+                // A pinned icon can go into one of the stacks of this dock.
+                var stacks = Items.Where(i => i.IsStack).ToList();
+                if (stacks.Count > 0 && !Config.LockItems)
+                {
+                    var into = new MenuItem { Header = tr("Mover a la pila", "Move to stack") };
+                    foreach (var st in stacks) { var target = st; into.Items.Add(Cmd(target.Name, () => Manager.MoveIntoStack(Items, item, target))); }
+                    menu.Items.Add(into);
+                }
+                menu.Items.Add(Cmd(tr("Quitar del dock", "Remove from dock"), () => RemoveItem(item)));
+            }
             menu.Items.Add(new Separator());
         }
 
         menu.Items.Add(Cmd(tr("Agregar aplicación…", "Add application…"), () => AddWithDialog(insertAt)));
+        menu.Items.Add(Cmd(tr("Nueva pila…", "New stack…"), () => EditStack(null, insertAt)));
         menu.Items.Add(new Separator());
         menu.Items.Add(Cmd(Config.Style == DockStyle.Panel
             ? tr("Cambiar a dock flotante (estilo Mac)", "Switch to floating dock (Mac style)")
@@ -511,6 +581,7 @@ internal sealed class DockWindow : Window
         }
         menu.Items.Add(look);
         menu.Items.Add(Cmd(tr("Configuración…", "Settings…"), () => Manager.OpenSettings()));
+        menu.Items.Add(Cmd(tr("Buscar actualizaciones", "Check for updates"), async () => await Updates.CheckAsync(Manager, interactive: true)));
         menu.Items.Add(Cmd(tr("Acerca de Muelle…", "About Muelle…"), () => Manager.OpenAbout()));
         menu.Items.Add(new Separator());
         menu.Items.Add(Cmd(tr("Salir de Muelle", "Quit Muelle"), Manager.Exit));
@@ -526,6 +597,7 @@ internal sealed class DockWindow : Window
 
     private static void OpenLocation(DockItem it)
     {
+        if (it.IsStack) return;
         try
         {
             string p = it.Cfg.Path;

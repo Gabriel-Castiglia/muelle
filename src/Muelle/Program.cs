@@ -23,19 +23,31 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        // Started again by the setup after an update: the arguments it had before come back.
+        args = Updates.AfterUpdateArgs(args, out bool updated, out string updateFailure);
+
         // Test options (not shown to users): "--screenshot <file.png>" renders a window to a PNG and exits,
-        // without touching the configuration file; "--window dock|settings|about|update" picks the window
-        // (dock by default), and "--language en|es", "--theme light|dark" and "--accent <key>" override the
-        // stored interface language, appearance and colour.
-        string shot = null, window = "dock", language = null, theme = null, accent = null;
+        // without touching the configuration file; "--window dock|settings|about|update|menu|stack|stack-editor" picks the
+        // window (dock by default), "--language en|es", "--theme light|dark" and "--accent <key>" override the
+        // stored interface language, appearance and colour, and "--sample" shows example apps and a stack
+        // instead of the user's own. "--self-test <log>" checks the main parts on a throwaway configuration
+        // (see SelfTest.cs) and exits with the number of failures.
+        string shot = null, window = "dock", language = null, theme = null, accent = null, selfTest = null;
         for (int i = 0; i < args.Length; i++)
         {
-            if (args[i] == "--screenshot" && i + 1 < args.Length) shot = Path.GetFullPath(args[++i]);
+            if (args[i] == "--self-test" && i + 1 < args.Length) selfTest = Path.GetFullPath(args[++i]);
+            else if (args[i] == "--screenshot" && i + 1 < args.Length) shot = Path.GetFullPath(args[++i]);
             else if (args[i] == "--window" && i + 1 < args.Length) window = args[++i];
             else if (args[i] == "--language" && i + 1 < args.Length) language = args[++i];
             else if (args[i] == "--theme" && i + 1 < args.Length) theme = args[++i];
             else if (args[i] == "--accent" && i + 1 < args.Length) accent = args[++i];
         }
+
+        // The self-test never touches the dock that may be running, nor its configuration.
+        if (selfTest != null) return SelfTest.Run(selfTest);
+        // Example screenshots start from the default settings, not from those of whoever takes them.
+        bool sample = shot != null && args.Contains("--sample");
+        if (sample) DockConfig.FolderOverride = Path.Combine(Path.GetTempPath(), "MuelleSample-" + Environment.ProcessId);
 
         // Only one dock instance at a time (a test screenshot can run separately).
         Mutex single = null;
@@ -54,6 +66,7 @@ internal static class Program
         app.DispatcherUnhandledException += (s, e) => { Log(e.Exception.ToString()); e.Handled = true; };
         var manager = new DockManager(shot, window);
         if (language != null) Loc.Current = Loc.FromCode(language);
+        if (sample) manager.UseSample();
         if (shot != null && (theme != null || accent != null))
         {
             // Only in memory: a screenshot never writes the configuration.
@@ -66,7 +79,9 @@ internal static class Program
         manager.Start();
         // "--settings": opens the settings window at startup (useful for a shortcut).
         if (shot == null && args.Contains("--settings")) manager.OpenSettings();
+        if (updated || updateFailure != null) UpdateWindow.ShowResult(updated, updateFailure);
         int rc = app.Run();
+        if (sample) try { Directory.Delete(DockConfig.FolderOverride, true); } catch { }
         GC.KeepAlive(single);
         return rc;
     }

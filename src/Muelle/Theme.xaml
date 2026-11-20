@@ -434,6 +434,34 @@
         </Setter>
     </Style>
 
+    <!-- Text fields (the name of a stack) -->
+    <Style TargetType="TextBox">
+        <Setter Property="Foreground" Value="{DynamicResource Mu.Text}" />
+        <Setter Property="CaretBrush" Value="{DynamicResource Mu.Text}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource Mu.Accent}" />
+        <Setter Property="FontFamily" Value="{DynamicResource Mu.Font}" />
+        <Setter Property="OverridesDefaultStyle" Value="True" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="B" CornerRadius="7" Background="{DynamicResource Mu.Field}" BorderThickness="1"
+                            BorderBrush="{DynamicResource Mu.CardBorder}" Padding="8,5" MinHeight="32">
+                        <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" Focusable="False"
+                                      HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Hidden" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource Mu.TextMuted}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="B" Property="BorderBrush" Value="{DynamicResource Mu.Accent}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- The list of dock applications -->
     <Style TargetType="ListBoxItem">
         <Setter Property="Foreground" Value="{DynamicResource Mu.Text}" />
