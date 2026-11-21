@@ -286,6 +286,8 @@ internal sealed class DockItem
     public DockItemConfig Cfg;
     public ImageSource Icon;
     public string ExePath;
+    /// <summary>What the icon was read from (<see cref="Shell.IconSignature"/>): when it changes, the icon is read again.</summary>
+    public string IconSig;
     public bool Running;
     /// <summary>Running app that is not pinned: shown at the end of the dock and dropped when it closes; not saved.</summary>
     public bool Transient;
@@ -349,8 +351,11 @@ internal sealed class DockItem
         // Packaged apps: their own sharpest logo (Windows may give the dock a 24 px one).
         if (it.ExePath != null && it.ExePath.StartsWith(WindowTracker.AumidPrefix, StringComparison.Ordinal))
             it.Icon = Shell.LoadPackagedIcon(it.ExePath.Substring(WindowTracker.AumidPrefix.Length));
+        // The icon the program gives its own shortcuts (Vigía's chosen colour), read from its file.
+        if (it.Icon == null && Shell.ThemedIconPath(it.ExePath) is string themed) it.Icon = Shell.LoadIconFile(themed);
         it.Icon ??= Shell.LoadSmallNativeIcon(it.ExePath) ?? Shell.LoadIcon(cfg.Path, 256);
         if (it.Icon == null && it.ExePath != null && it.ExePath != cfg.Path) it.Icon = Shell.LoadIcon(it.ExePath, 256);
+        it.IconSig = Shell.IconSignature(it.ExePath);
         return it;
     }
 

@@ -14,6 +14,8 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace Muelle;
 
@@ -47,6 +49,7 @@ internal static class SelfTest
             Section("Screens", Screens);
             Section("Docks per screen", PerMonitor);
             Section("Stacks", Stacks);
+            Section("Icons that follow the app", Icons);
             Section("Updates", UpdateFunctions);
             if (Environment.GetCommandLineArgs().Contains("--online")) Section("Updates, online", Online);
             GC.KeepAlive(app);
@@ -182,6 +185,74 @@ internal static class SelfTest
     }
 
     // ---------------- Stacks ----------------
+    /// <summary>
+    /// A program whose shortcuts name an icon of its own folder (as Vigía does with the colour chosen for it): the
+    /// dock shows that icon, follows it when it changes, and leaves alone an icon chosen by hand from elsewhere.
+    /// A copy of Notepad stands in for the program, with shortcuts in a folder of the test's own.
+    /// </summary>
+    private static void Icons()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "MuelleIcons-" + Guid.NewGuid().ToString("N"));
+        string app = Path.Combine(root, "App"), start = Path.Combine(root, "Start"), lnk = Path.Combine(start, "App.lnk");
+        Directory.CreateDirectory(Path.Combine(app, "theme"));
+        Directory.CreateDirectory(start);
+        try
+        {
+            string exe = Path.Combine(app, "App.exe");
+            File.Copy(Path.Combine(Environment.SystemDirectory, "notepad.exe"), exe);
+            string blue = Path.Combine(app, "theme", "app_blue.ico"), red = Path.Combine(app, "theme", "app_red.ico");
+            string elsewhere = Path.Combine(root, "chosen.ico");
+            WriteIco(blue, 48, Colors.SteelBlue);
+            WriteIco(red, 40, Colors.IndianRed);
+            WriteIco(elsewhere, 36, Colors.Gray);
+            Shell.ShortcutFoldersOverride = new[] { start };
+            Shell.WriteLink(lnk, exe, blue);
+            Shell.ForgetThemedIcons();
+            Check("a program's own shortcut names its icon", string.Equals(Shell.ThemedIconPath(exe), blue, StringComparison.OrdinalIgnoreCase));
+
+            WriteConfig(c => { c.Items = new() { new DockItemConfig { Name = "", Path = exe } }; c.ShowRunningApps = false; });
+            var m = new DockManager(null, null, selfTest: true);
+            var it = m.Items.First();
+            Check("the dock shows the icon of the program's shortcut, read from its file", (it.Icon as BitmapSource)?.PixelWidth == 48);
+            Check("with nothing changed, no icon is read again", m.RefreshIcons() == 0);
+
+            Shell.WriteLink(lnk, exe, red);
+            File.Delete(blue);
+            Shell.ForgetThemedIcons();
+            int read = m.RefreshIcons();
+            Check("the program changed the colour of its icon: the dock follows without restarting",
+                  read == 1 && (it.Icon as BitmapSource)?.PixelWidth == 40);
+
+            Shell.WriteLink(lnk, exe, elsewhere);
+            Shell.ForgetThemedIcons();
+            Check("an icon chosen by hand from outside the program's folder is not taken for the program's", Shell.ThemedIconPath(exe) == null);
+        }
+        finally
+        {
+            Shell.ShortcutFoldersOverride = null;
+            Shell.ForgetThemedIcons();
+            try { Directory.Delete(root, true); } catch { }
+        }
+    }
+
+    /// <summary>An .ico of one square of colour, <paramref name="px"/> wide (a PNG inside, as Windows allows).</summary>
+    private static void WriteIco(string path, int px, Color c)
+    {
+        var pixels = new byte[px * px * 4];
+        for (int i = 0; i < pixels.Length; i += 4) { pixels[i] = c.B; pixels[i + 1] = c.G; pixels[i + 2] = c.R; pixels[i + 3] = 255; }
+        var src = BitmapSource.Create(px, px, 96, 96, PixelFormats.Bgra32, null, pixels, px * 4);
+        var enc = new PngBitmapEncoder();
+        enc.Frames.Add(BitmapFrame.Create(src));
+        using var ms = new MemoryStream();
+        enc.Save(ms);
+        byte[] png = ms.ToArray();
+        using var w = new BinaryWriter(File.Create(path));
+        w.Write((short)0); w.Write((short)1); w.Write((short)1);                     // ICONDIR: an icon, one image
+        w.Write((byte)px); w.Write((byte)px); w.Write((byte)0); w.Write((byte)0);   // ICONDIRENTRY
+        w.Write((short)1); w.Write((short)32); w.Write(png.Length); w.Write(22);
+        w.Write(png);
+    }
+
     private static void Stacks()
     {
         WriteConfig(c => { c.Items = new() { Item("notepad.exe"), Item("calc.exe"), Item("mspaint.exe") }; c.ShowRunningApps = false; });

@@ -109,9 +109,44 @@ internal sealed class DockManager
             if (!exiting) await Updates.CheckAsync(this, interactive: false);
         };
         updateTimer.Start();
+        iconTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(15) };
+        iconTimer.Tick += (s, e) => { if (!exiting) RefreshIcons(); };
+        iconTimer.Start();
     }
 
     private DispatcherTimer updateTimer;
+    private DispatcherTimer iconTimer;
+
+    /// <summary>
+    /// An app that was updated, or that changed the colour of its icon (Vigía), shows its new icon without restarting
+    /// the dock: every 15 s the dates its icons were read from are compared (a few file dates, no icon is read unless
+    /// one changed). Returns how many icons were read again.
+    /// </summary>
+    public int RefreshIcons()
+    {
+        int n = 0;
+        bool Walk(IEnumerable<DockItem> items)
+        {
+            bool any = false;
+            foreach (var it in items)
+            {
+                if (it.Children != null)
+                {
+                    if (Walk(it.Children) && string.IsNullOrWhiteSpace(it.Cfg.Icon)) it.Icon = DockItem.StackIcon(it.Children.Select(c => c.Icon));
+                    continue;
+                }
+                if (it.ExePath == null || Shell.IconSignature(it.ExePath) == it.IconSig) continue;
+                var fresh = DockItem.From(it.Cfg);
+                it.Icon = fresh.Icon; it.IconSig = fresh.IconSig;
+                n++; any = true;
+            }
+            return any;
+        }
+        Walk(Items.ToList());
+        foreach (var list in monitorLists.Values) Walk(list.ToList());
+        if (n > 0) foreach (var w in windows) w.View.InvalidateVisual();
+        return n;
+    }
 
     /// <summary>
     /// Test screenshots: example apps and a stack, instead of the user's own; never saved. Only programs that come

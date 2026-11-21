@@ -2,6 +2,19 @@
 
 All notable changes to Muelle. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 2.3.0 - 2026-11-21
+
+### Added
+
+- Icons follow their apps. Every 15 seconds the dock compares the dates its icons were read from, and reads again
+  the icon of an app that was updated or that changed its own icon, without restarting. Before, a new icon showed
+  only after Muelle restarted.
+- For a program, the icon its own shortcuts (Start menu, desktop, taskbar) name, when that `.ico` lives in the
+  program's folder. Vigía writes the icon of the colour chosen for it there and points its shortcuts at it; the
+  dock, which points at `Vigia.exe`, kept the icon inside the program. The file is read directly, because the
+  shell's icon cache keeps the old picture of a path whose file changed. An icon chosen by hand from elsewhere is
+  left alone.
+
 ## 2.2.0 - 2026-11-20
 
 ### Added

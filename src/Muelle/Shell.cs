@@ -316,7 +316,155 @@ internal static class Shell
     [ComImport, Guid("000214F9-0000-0000-C000-000000000046"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IShellLinkW
     {
+        // The whole table up to SetPath, in Windows' order: COM calls a method by its place in it.
         void GetPath([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder file, int cch, IntPtr findData, uint flags);
+        void GetIDList(out IntPtr pidl);
+        void SetIDList(IntPtr pidl);
+        void GetDescription([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder name, int cch);
+        void SetDescription([MarshalAs(UnmanagedType.LPWStr)] string name);
+        void GetWorkingDirectory([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder dir, int cch);
+        void SetWorkingDirectory([MarshalAs(UnmanagedType.LPWStr)] string dir);
+        void GetArguments([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder args, int cch);
+        void SetArguments([MarshalAs(UnmanagedType.LPWStr)] string args);
+        void GetHotkey(out short hotkey);
+        void SetHotkey(short hotkey);
+        void GetShowCmd(out int showCmd);
+        void SetShowCmd(int showCmd);
+        void GetIconLocation([Out, MarshalAs(UnmanagedType.LPWStr)] StringBuilder path, int cch, out int index);
+        void SetIconLocation([MarshalAs(UnmanagedType.LPWStr)] string path, int index);
+        void SetRelativePath([MarshalAs(UnmanagedType.LPWStr)] string path, uint reserved);
+        void Resolve(IntPtr hwnd, uint flags);
+        void SetPath([MarshalAs(UnmanagedType.LPWStr)] string file);
+    }
+
+    // ---- The icon an app gives its own shortcuts ----
+    // An app that lets its user choose the colour of its icon (Vigía) writes the chosen one to its own folder and
+    // points its shortcuts (Start menu, desktop, taskbar) at it. The dock, which points at the program, follows it:
+    // for a program, the .ico that its shortcuts name, when that file lives in the program's own folder (an icon
+    // chosen by hand for one shortcut, from anywhere else, is left alone). The file is read directly: the shell's
+    // icon cache keeps the old picture of a path whose file changed.
+
+    /// <summary>Folders whose shortcuts are read (the self-test points it at its own).</summary>
+    internal static string[] ShortcutFoldersOverride;
+
+    private static IEnumerable<string> ShortcutFolders() => ShortcutFoldersOverride ?? new[]
+    {
+        Environment.GetFolderPath(Environment.SpecialFolder.Programs),
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms),
+        Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
+        Environment.GetFolderPath(Environment.SpecialFolder.CommonDesktopDirectory),
+        System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), @"Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"),
+    };
+
+    private static readonly Dictionary<string, (DateTime Written, string Target, string Icon)> linkCache = new(StringComparer.OrdinalIgnoreCase);
+    private static Dictionary<string, string> themedIcons;
+    private static DateTime themedIconsAt;
+
+    /// <summary>Forgets what was read, so the next question reads the folders again (the self-test).</summary>
+    internal static void ForgetThemedIcons() { themedIcons = null; linkCache.Clear(); }
+
+    /// <summary>The icon file the program's own shortcuts show, from the program's folder; null if there is none.</summary>
+    public static string ThemedIconPath(string exe)
+    {
+        if (string.IsNullOrWhiteSpace(exe) || !exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) return null;
+        return ThemedIcons().TryGetValue(exe, out var ico) ? ico : null;
+    }
+
+    /// <summary>
+    /// Program → icon, from every shortcut of the folders. Read again at most every 5 s, and a shortcut only when its
+    /// date changed. When several shortcuts of one program name different icons, the newest file wins.
+    /// </summary>
+    private static Dictionary<string, string> ThemedIcons()
+    {
+        if (themedIcons != null && DateTime.UtcNow - themedIconsAt < TimeSpan.FromSeconds(5)) return themedIcons;
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var folder in ShortcutFolders().Where(f => !string.IsNullOrEmpty(f) && Directory.Exists(f)))
+        {
+            List<string> links;
+            try { links = Directory.EnumerateFiles(folder, "*.lnk", SearchOption.AllDirectories).ToList(); } catch { continue; }
+            foreach (var lnk in links)
+            {
+                seen.Add(lnk);
+                DateTime written;
+                try { written = File.GetLastWriteTimeUtc(lnk); } catch { continue; }
+                if (!linkCache.TryGetValue(lnk, out var e) || e.Written != written)
+                {
+                    var (target, icon) = ReadLink(lnk);
+                    linkCache[lnk] = e = (written, target, icon);
+                }
+                if (e.Target == null || e.Icon == null || !e.Icon.EndsWith(".ico", StringComparison.OrdinalIgnoreCase)) continue;
+                string dir = System.IO.Path.GetDirectoryName(e.Target);
+                if (string.IsNullOrEmpty(dir) || !e.Icon.StartsWith(dir + "\\", StringComparison.OrdinalIgnoreCase) || !File.Exists(e.Icon)) continue;
+                if (map.TryGetValue(e.Target, out var other) && File.GetLastWriteTimeUtc(other) >= File.GetLastWriteTimeUtc(e.Icon)) continue;
+                map[e.Target] = e.Icon;
+            }
+        }
+        foreach (var gone in linkCache.Keys.Where(k => !seen.Contains(k)).ToList()) linkCache.Remove(gone);
+        themedIcons = map;
+        themedIconsAt = DateTime.UtcNow;
+        return map;
+    }
+
+    /// <summary>The program and the icon file a shortcut names (null where it names none).</summary>
+    private static (string Target, string Icon) ReadLink(string lnk)
+    {
+        object link = null;
+        try
+        {
+            link = new ShellLinkCoClass();
+            ((IPersistFile)link).Load(lnk, 0);
+            var sb = new StringBuilder(1024);
+            ((IShellLinkW)link).GetPath(sb, sb.Capacity, IntPtr.Zero, 0);
+            string target = Environment.ExpandEnvironmentVariables(sb.ToString());
+            sb.Clear();
+            ((IShellLinkW)link).GetIconLocation(sb, 1024, out _);
+            string icon = Environment.ExpandEnvironmentVariables(sb.ToString());
+            return (string.IsNullOrWhiteSpace(target) ? null : target, string.IsNullOrWhiteSpace(icon) ? null : icon);
+        }
+        catch { return (null, null); }
+        finally { if (link != null) Marshal.ReleaseComObject(link); }
+    }
+
+    /// <summary>A shortcut to a program with an icon (the self-test makes its own with this).</summary>
+    internal static void WriteLink(string lnk, string target, string icon)
+    {
+        object link = new ShellLinkCoClass();
+        try
+        {
+            ((IShellLinkW)link).SetPath(target);
+            if (icon != null) ((IShellLinkW)link).SetIconLocation(icon, 0);
+            ((IPersistFile)link).Save(lnk, true);
+        }
+        finally { Marshal.ReleaseComObject(link); }
+    }
+
+    /// <summary>An .ico read straight from the file, at the size nearest to <paramref name="px"/>.</summary>
+    public static ImageSource LoadIconFile(string ico, int px = 256)
+    {
+        try
+        {
+            using var s = File.OpenRead(ico);
+            var dec = new IconBitmapDecoder(s, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+            var frame = dec.Frames.OrderBy(f => Math.Abs(f.PixelWidth - px)).ThenByDescending(f => f.PixelWidth).First();
+            frame.Freeze();
+            return frame;
+        }
+        catch { return null; }
+    }
+
+    /// <summary>What the icon of a program depends on: its date, and the icon its shortcuts name and that file's date.
+    /// When it changes (the program was updated, or it changed the colour of its icon) the dock reads the icon again.</summary>
+    public static string IconSignature(string exe)
+    {
+        if (string.IsNullOrWhiteSpace(exe) || exe.StartsWith(WindowTracker.AumidPrefix, StringComparison.Ordinal)) return "";
+        try
+        {
+            string themed = ThemedIconPath(exe);
+            return (File.Exists(exe) ? File.GetLastWriteTimeUtc(exe).Ticks : 0) + "|" + themed + "|" +
+                   (themed != null ? File.GetLastWriteTimeUtc(themed).Ticks : 0);
+        }
+        catch { return ""; }
     }
 
     /// <summary>Actual program a .lnk points to (or the file itself if it is not a shortcut).</summary>

@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/dock-es.png" width="720" alt="El dock en el borde de abajo de la pantalla"></p>
 
-Gabriel Castiglia · 20 de noviembre de 2026 · versión 2.2.0 · GPL-2.0-only
+Gabriel Castiglia · 21 de noviembre de 2026 · versión 2.3.0 · GPL-2.0-only
 
 [English](README.md) · Español
 
@@ -79,6 +79,10 @@ Para desinstalar sin ventanas: `muelle-setup.exe /uninstall /quiet`.
   ventanas, cada clic trae la siguiente. Un clic sobre la única ventana que ya está al frente la
   minimiza. Mayúsculas+clic o el botón del medio abren una ventana nueva.
 - El icono rebota mientras la aplicación arranca, y un punto debajo marca las aplicaciones abiertas.
+- Cada icono sigue a su aplicación: cuando se actualiza, o cuando cambia el color de su propio icono (como hace
+  Vigía con el color del tema), el dock muestra el nuevo en menos de 15 segundos, sin reiniciarse. Para un
+  programa, el dock toma el icono que nombran los accesos directos del propio programa cuando ese archivo está
+  en la carpeta del programa; un icono elegido a mano para un acceso, de cualquier otro lado, no se toca.
 - Las aplicaciones abiertas que no están en el dock aparecen al final y se van al cerrarse. «Mantener en
   el dock» en su menú, o arrastrarlas entre las demás, las deja fijas.
 - Las aplicaciones se agregan soltando un acceso directo o un `.exe` sobre el dock, con «Agregar

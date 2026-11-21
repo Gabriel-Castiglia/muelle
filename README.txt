@@ -1,7 +1,7 @@
 Muelle
 ======
 
-Gabriel Castiglia · November 20, 2026 · version 2.2.0 · GPL-2.0-only
+Gabriel Castiglia · November 21, 2026 · version 2.3.0 · GPL-2.0-only
 
 English · Español (README.es.txt)
 
@@ -76,6 +76,10 @@ Using the dock
   front; with several windows, each click brings the next one. A click on the only window that is
   already in front minimizes it. Shift+click or a middle click opens a new window.
 - The icon bounces while an application starts, and a dot under an icon marks an open application.
+- An icon follows its app: when the app is updated, or changes the colour of its own icon (as Vigía
+  does with its theme colour), the dock shows the new one within 15 seconds, without restarting. For
+  a program, the dock takes the icon that the program's own shortcuts name when that file lives in
+  the program's folder; an icon chosen by hand for one shortcut, from anywhere else, is left alone.
 - Open applications that are not in the dock appear at its end and leave when they close. "Keep in
   dock" in their menu, or dragging them among the others, keeps them.
 - Applications are added by dropping a shortcut or an .exe on the dock, with "Add application…" in
