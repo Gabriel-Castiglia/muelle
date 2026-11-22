@@ -50,6 +50,7 @@ internal static class SelfTest
             Section("Docks per screen", PerMonitor);
             Section("Stacks", Stacks);
             Section("Icons that follow the app", Icons);
+            Section("Fullscreen apps", Fullscreen);
             Section("Updates", UpdateFunctions);
             if (Environment.GetCommandLineArgs().Contains("--online")) Section("Updates, online", Online);
             GC.KeepAlive(app);
@@ -116,6 +117,18 @@ internal static class SelfTest
     }
 
     // ---------------- Screens ----------------
+    private static void Fullscreen()
+    {
+        var mon = new Native.RECT(0, 0, 1920, 1080);
+        const long popup = 0x80000000, normal = 0x00CF0000; // WS_POPUP; WS_OVERLAPPEDWINDOW (has WS_CAPTION)
+        Check("a borderless window the size of the screen is fullscreen", Native.LooksFullscreen(new(0, 0, 1920, 1080), popup, mon));
+        Check("a window larger than the screen is fullscreen", Native.LooksFullscreen(new(-1, -1, 1921, 1081), popup, mon));
+        Check("a maximized window with a title bar is not", !Native.LooksFullscreen(new(-8, -8, 1928, 1088), normal, mon));
+        Check("a smaller borderless window is not", !Native.LooksFullscreen(new(0, 0, 1920, 1040), popup, mon));
+        Check("a window on another screen is not", !Native.LooksFullscreen(new(1920, 0, 3840, 1080), popup, mon));
+        Check("without a screen, nothing is fullscreen", !Native.LooksFullscreen(new(0, 0, 1920, 1080), popup, default));
+    }
+
     private static void Screens()
     {
         var list = new List<MonitorDockConfig>

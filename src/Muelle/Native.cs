@@ -87,7 +87,8 @@ internal static class Native
     public static extern int GetDpiForMonitor(IntPtr hmonitor, int dpiType, out uint dpiX, out uint dpiY);
 
     // ---- Windows ----
-    public const int GWL_EXSTYLE = -20;
+    public const int GWL_EXSTYLE = -20, GWL_STYLE = -16;
+    public const long WS_CAPTION = 0x00C00000;
     public const long WS_EX_TOOLWINDOW = 0x80, WS_EX_NOACTIVATE = 0x08000000, WS_EX_APPWINDOW = 0x40000;
     public static readonly IntPtr HWND_TOPMOST = new(-1), HWND_NOTOPMOST = new(-2);
     public const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOACTIVATE = 0x10, SWP_SHOWWINDOW = 0x40;
@@ -176,6 +177,15 @@ internal static class Native
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetLongPathName(string shortPath, StringBuilder longPath, int size);
+
+    /// <summary>
+    /// A window in fullscreen: it covers the whole monitor and has no title bar. A maximized window with a title bar
+    /// can also cover the monitor (when the taskbar hides itself), but it is not a game or a video.
+    /// </summary>
+    public static bool LooksFullscreen(RECT window, long style, RECT monitor) =>
+        !monitor.IsEmpty && (style & WS_CAPTION) != WS_CAPTION &&
+        window.Left <= monitor.Left && window.Top <= monitor.Top &&
+        window.Right >= monitor.Right && window.Bottom >= monitor.Bottom;
 
     public static string ClassOf(IntPtr hWnd)
     {

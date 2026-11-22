@@ -42,7 +42,12 @@ internal sealed class DockWindow : Window
     private readonly string screenshotPath;
     private IntPtr hwnd;
     private uint callbackMsg, taskbarCreatedMsg;
-    private bool appBarRegistered, fullscreenAppActive;
+    private bool appBarRegistered;
+    // Fullscreen app in front (game, video): Windows only tells an app bar (fullscreenFromAppBar), and the dock is not
+    // one when it hides itself or does not reserve its strip, so it also looks for itself (fullscreenSeen).
+    private bool fullscreenFromAppBar, fullscreenSeen, hiddenForFullscreen;
+    private bool FullscreenActive => fullscreenFromAppBar || fullscreenSeen;
+    private readonly DispatcherTimer fullscreenTimer;
     private string appBarKey = "";
     private Native.RECT lastSetRc;
     /// <summary>Monitor pinned to this window ("all screens" mode); null = whichever the configuration specifies.</summary>
@@ -77,11 +82,14 @@ internal sealed class DockWindow : Window
 
         repositionTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromMilliseconds(250) };
         repositionTimer.Tick += (s, e) => { repositionTimer.Stop(); ApplyPosition(); };
+        fullscreenTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
+        fullscreenTimer.Tick += (s, e) => CheckFullscreen();
 
         SourceInitialized += OnSourceInitialized;
         Loaded += (s, e) =>
         {
             View.Kick();
+            if (screenshotPath == null) fullscreenTimer.Start();
             if (screenshotPath != null)
             {
                 // If frame-by-frame rendering never starts, the screenshot is taken anyway.
@@ -99,7 +107,7 @@ internal sealed class DockWindow : Window
             e.Cancel = true;
             Dispatcher.BeginInvoke(new Action(Manager.Exit));
         };
-        Closed += (s, e) => RemoveAppBar();
+        Closed += (s, e) => { fullscreenTimer.Stop(); RemoveAppBar(); };
     }
 
     // ---------------- Window / AppBar ----------------
@@ -143,6 +151,9 @@ internal sealed class DockWindow : Window
     {
         if (shellHookMsg != 0 && msg == (int)shellHookMsg)
         {
+            // HSHELL_WINDOWACTIVATED / HSHELL_RUDEAPPACTIVATED: another window came to the front; look again at once.
+            if ((wParam.ToInt32() & 0x7FFF) == 4 && screenshotPath == null)
+                Dispatcher.BeginInvoke(new Action(CheckFullscreen), DispatcherPriority.Background);
             // HSHELL_GETMINRECT: Windows asks where to animate a window when it is minimized.
             // We answer with the app's icon in the dock (instead of its taskbar button).
             if ((wParam.ToInt32() & 0x7FFF) == 5 && lParam != IntPtr.Zero && MinimizeTarget(Marshal.ReadIntPtr(lParam)) is Native.RECT rc)
@@ -161,12 +172,9 @@ internal sealed class DockWindow : Window
                     ScheduleReposition();
                     break;
                 case Native.ABN_FULLSCREENAPP:
-                    // Fullscreen app (video, game): the dock goes to the background.
-                    fullscreenAppActive = lParam != IntPtr.Zero;
-                    Native.SetWindowPos(hwnd, fullscreenAppActive ? Native.HWND_NOTOPMOST : Native.HWND_TOPMOST, 0, 0, 0, 0,
-                        Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
-                    if (fullscreenAppActive) Native.SetWindowPos(hwnd, new IntPtr(1) /* HWND_BOTTOM */, 0, 0, 0, 0,
-                        Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
+                    // Fullscreen app (video, game): the dock steps out of the way.
+                    fullscreenFromAppBar = lParam != IntPtr.Zero;
+                    ApplyFullscreen();
                     break;
             }
             handled = true;
@@ -193,6 +201,53 @@ internal sealed class DockWindow : Window
             Native.SHAppBarMessage(Native.ABM_WINDOWPOSCHANGED, ref abd);
         }
         return IntPtr.Zero;
+    }
+
+    /// <summary>Whether the window in front covers this dock's monitor in fullscreen.</summary>
+    private void CheckFullscreen()
+    {
+        bool fs = false;
+        try
+        {
+            IntPtr fg = Native.GetForegroundWindow();
+            if (fg != IntPtr.Zero && fg != hwnd && Native.IsWindowVisible(fg) && !Native.IsIconic(fg))
+            {
+                Native.GetWindowThreadProcessId(fg, out uint pid);
+                string cls = Native.ClassOf(fg);
+                // The desktop and the taskbar also cover the screen, and they are not an app in fullscreen.
+                bool shell = cls is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd";
+                var mon = Monitors.Pick(monitorDevice ?? Config.Monitor);
+                if (pid != (uint)Environment.ProcessId && !shell && mon != null &&
+                    Native.MonitorFromWindow(fg, 2 /* MONITOR_DEFAULTTONEAREST */) == mon.Handle &&
+                    Native.GetWindowRect(fg, out var wr))
+                    fs = Native.LooksFullscreen(wr, Native.GetWindowLongPtr(fg, Native.GWL_STYLE).ToInt64(), mon.Bounds);
+            }
+        }
+        catch { fs = false; }
+        if (fs == fullscreenSeen) return;
+        fullscreenSeen = fs;
+        ApplyFullscreen();
+    }
+
+    /// <summary>
+    /// With a fullscreen app in front the dock hides completely, so that reaching the edge with the pointer (games
+    /// that scroll the view at the edges) does not bring it up over the app; it comes back when the app leaves.
+    /// </summary>
+    private void ApplyFullscreen()
+    {
+        bool fs = FullscreenActive;
+        if (fs == hiddenForFullscreen || hwnd == IntPtr.Zero) return;
+        hiddenForFullscreen = fs;
+        if (fs)
+        {
+            Native.SetWindowPos(hwnd, Native.HWND_NOTOPMOST, 0, 0, 0, 0, Native.SWP_NOMOVE | Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
+            Visibility = Visibility.Hidden;
+        }
+        else
+        {
+            Visibility = Visibility.Visible;
+            ApplyPosition();
+        }
     }
 
     private Native.APPBARDATA NewAbd() => new()
@@ -311,7 +366,7 @@ internal sealed class DockWindow : Window
             case DockEdge.Top: x = rc.Left; y = rc.Top; w = rc.Width; h = extent; break;
             default: x = rc.Left; y = rc.Bottom - extent; w = rc.Width; h = extent; break;
         }
-        Native.SetWindowPos(hwnd, fullscreenAppActive ? Native.HWND_NOTOPMOST : Native.HWND_TOPMOST, x, y, w, h, Native.SWP_NOACTIVATE);
+        Native.SetWindowPos(hwnd, FullscreenActive ? Native.HWND_NOTOPMOST : Native.HWND_TOPMOST, x, y, w, h, Native.SWP_NOACTIVATE);
         View.InvalidateVisual();
         View.Kick();
     }

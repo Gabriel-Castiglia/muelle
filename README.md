@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/dock-en.png" width="720" alt="The dock at the bottom of the screen"></p>
 
-Gabriel Castiglia · November 21, 2026 · version 2.3.0 · GPL-2.0-only
+Gabriel Castiglia · November 23, 2026 · version 2.3.1 · GPL-2.0-only
 
 English · [Español](README.es.md)
 

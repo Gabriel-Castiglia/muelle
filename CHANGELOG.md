@@ -2,6 +2,18 @@
 
 All notable changes to Muelle. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 2.3.1 - 2026-11-23
+
+### Fixed
+
+- The dock no longer comes up over a game or a video in fullscreen. Windows only tells an app bar that a fullscreen
+  app is in front, and the dock is not one when it hides itself or does not reserve its strip: it stayed on top of
+  everything, and a game that scrolls the view when the pointer reaches the edge brought it up again and again.
+  Now the dock looks for itself every second and whenever another window comes to the front: if that window covers
+  its whole screen without a title bar, the dock hides completely, also from the pointer at the edge, and comes
+  back when the app leaves fullscreen or another window comes to the front. A maximized window with a title bar
+  does not count.
+
 ## 2.3.0 - 2026-11-21
 
 ### Added
