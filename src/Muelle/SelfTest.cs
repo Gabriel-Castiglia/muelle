@@ -113,7 +113,32 @@ internal static class SelfTest
         var copy = again.Items.Last().Clone();
         copy.Stack.Clear();
         Check("a copy of a stack shares nothing with it", again.Items.Last().Stack.Count == 2);
-        File.Delete(DockConfig.FilePath);
+
+        // The user's settings survive a new version: a value this one cannot read drops that setting alone.
+        File.WriteAllText(DockConfig.FilePath, """
+            { "AutoHide": true, "IconSize": 44, "Edge": "Diagonal", "FutureSetting": { "a": 1 },
+              "Items": [ { "Name": "Notes", "Path": "C:\\Windows\\notepad.exe", "FutureItemField": 7 } ] }
+            """);
+        var newer = DockConfig.Load(out firstRun);
+        Check("a value it cannot read drops that setting only, not all of them",
+              !firstRun && newer.AutoHide && newer.IconSize == 44 && newer.Edge == DockEdge.Left && newer.Items.Count == 1);
+        newer.Save();
+        string written = File.ReadAllText(DockConfig.FilePath);
+        Check("settings of a newer version are written back as they were",
+              written.Contains("FutureSetting") && written.Contains("FutureItemField"));
+        Check("another version reading the file keeps a copy of it first",
+              Directory.GetFiles(DockConfig.Folder, "config.before-*.json").Length == 1);
+
+        // A file that cannot be read at all is kept aside, and the previous one is read: never the defaults.
+        newer.IconSize = 60;
+        newer.Save();
+        File.WriteAllText(DockConfig.FilePath, "{ \"AutoHide\": tr");
+        var rescued = DockConfig.Load(out firstRun);
+        Check("an unreadable file: the previous settings, not the defaults", !firstRun && rescued.AutoHide && rescued.IconSize == 44);
+        Check("an unreadable file is kept aside", Directory.GetFiles(DockConfig.Folder, "config.unreadable-*.json").Length == 1);
+        rescued.Save();
+        Check("a damaged file never becomes the previous one", DockConfig.Load(out _).IconSize == 44 && File.ReadAllText(DockConfig.PreviousPath).Contains("\"AutoHide\": true"));
+        foreach (var f in Directory.GetFiles(DockConfig.Folder, "config*.json")) File.Delete(f);
     }
 
     // ---------------- Screens ----------------
@@ -239,6 +264,17 @@ internal static class SelfTest
             Shell.WriteLink(lnk, exe, elsewhere);
             Shell.ForgetThemedIcons();
             Check("an icon chosen by hand from outside the program's folder is not taken for the program's", Shell.ThemedIconPath(exe) == null);
+
+            // A shortcut of its own with an icon chosen by hand keeps it, though the program's shortcuts name another.
+            Shell.WriteLink(lnk, exe, red);
+            string mine = Path.Combine(root, "Mine.lnk");
+            Shell.WriteLink(mine, exe, elsewhere);
+            Shell.ForgetThemedIcons();
+            Check("an icon chosen for a shortcut is found", string.Equals(Shell.ChosenIconPath(mine), elsewhere, StringComparison.OrdinalIgnoreCase)
+                  && Shell.ChosenIconPath(lnk) == null);
+            Check("the dock shows the icon chosen for its shortcut, not the program's", (DockItem.From(new DockItemConfig { Path = mine }).Icon as BitmapSource)?.PixelWidth == 36);
+            Check("an icon chosen in the settings wins over every other",
+                  (DockItem.From(new DockItemConfig { Path = exe, Icon = elsewhere }).Icon as BitmapSource)?.PixelWidth == 36);
         }
         finally
         {

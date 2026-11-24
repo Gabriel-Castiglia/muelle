@@ -426,6 +426,24 @@ internal static class Shell
         finally { if (link != null) Marshal.ReleaseComObject(link); }
     }
 
+    /// <summary>
+    /// The icon chosen by hand for one shortcut: the one it names when that is not its program nor a file of the
+    /// program's folder (those are the program's own icons, which <see cref="ThemedIconPath"/> follows). null if none.
+    /// </summary>
+    public static string ChosenIconPath(string lnk)
+    {
+        if (string.IsNullOrWhiteSpace(lnk) || !lnk.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase) || !File.Exists(lnk)) return null;
+        var (target, icon) = ReadLink(lnk);
+        if (icon == null || !File.Exists(icon)) return null;
+        if (target != null)
+        {
+            if (string.Equals(icon, target, StringComparison.OrdinalIgnoreCase)) return null;
+            string dir = System.IO.Path.GetDirectoryName(target);
+            if (!string.IsNullOrEmpty(dir) && icon.StartsWith(dir + "\\", StringComparison.OrdinalIgnoreCase)) return null;
+        }
+        return icon;
+    }
+
     /// <summary>A shortcut to a program with an icon (the self-test makes its own with this).</summary>
     internal static void WriteLink(string lnk, string target, string icon)
     {

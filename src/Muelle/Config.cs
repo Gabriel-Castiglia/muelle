@@ -13,6 +13,7 @@
 
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Windows.Media;
 using Microsoft.Win32;
@@ -35,8 +36,14 @@ public sealed class DockItemConfig
     /// shortcuts, in order. null = an ordinary icon. A stack has no <see cref="Path"/> and holds no other stacks.
     /// </summary>
     public List<DockItemConfig> Stack { get; set; }
-    /// <summary>Icon of a stack: an .ico, .exe, .dll, .png or any file whose icon is shown; null = its first shortcuts in a grid.</summary>
+    /// <summary>
+    /// Icon chosen for this item: an .ico, .exe, .dll, .png or any file whose icon is shown. It wins over every other
+    /// icon. null = for a stack, its first shortcuts in a grid; for a shortcut, its own icon or its program's.
+    /// </summary>
     public string Icon { get; set; }
+
+    /// <summary>Fields this version does not know (written by a newer one): kept and written back as they were.</summary>
+    [JsonExtensionData] public Dictionary<string, JsonElement> Unknown { get; set; }
 
     [JsonIgnore] public bool IsStack => Stack != null;
 
@@ -45,6 +52,7 @@ public sealed class DockItemConfig
     {
         Name = Name, Path = Path, Arguments = Arguments, Icon = Icon,
         Stack = Stack?.Select(c => c.Clone()).ToList(),
+        Unknown = Unknown == null ? null : new(Unknown),
     };
 }
 
@@ -56,6 +64,8 @@ public sealed class DockItemConfig
 /// </summary>
 public sealed class MonitorDockConfig
 {
+    /// <summary>Fields this version does not know (written by a newer one): kept and written back as they were.</summary>
+    [JsonExtensionData] public Dictionary<string, JsonElement> Unknown { get; set; }
     public string Id { get; set; } = "";
     /// <summary>Display name when it was last seen (\\.\DISPLAY2…).</summary>
     public string Device { get; set; } = "";
@@ -132,6 +142,10 @@ public sealed class DockConfig
     /// </summary>
     public bool PerMonitor { get; set; }
     public List<MonitorDockConfig> MonitorDocks { get; set; } = new();
+    /// <summary>Version of Muelle that last wrote the file: when another one reads it, a copy is kept first.</summary>
+    public string SavedBy { get; set; }
+    /// <summary>Settings this version does not know (written by a newer one): kept and written back as they were.</summary>
+    [JsonExtensionData] public Dictionary<string, JsonElement> Unknown { get; set; }
 
     /// <summary>Folder used instead of %APPDATA%\Muelle (the self-test works on a throwaway copy); null = the real one.</summary>
     internal static string FolderOverride;
@@ -146,23 +160,79 @@ public sealed class DockConfig
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
+    /// <summary>The previous file, written before every save: what is read when config.json cannot be.</summary>
+    public static string PreviousPath => Path.Combine(Folder, "config.previous.json");
+
+    private static string RunningVersion =>
+        typeof(DockConfig).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+            .OfType<System.Reflection.AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion ?? "";
+
+    /// <summary>
+    /// The settings are the user's: nothing here may put them back to the defaults. A setting this version cannot read
+    /// (a value a newer version added, a damaged entry) is dropped alone and the rest is kept; a file that cannot be
+    /// read at all is kept aside with the date, and the previous one is read instead. When another version of Muelle
+    /// reads the file for the first time (it was updated or went back), a copy is kept before anything is written.
+    /// </summary>
     public static DockConfig Load(out bool firstRun)
     {
         firstRun = false;
-        try
+        bool exists = File.Exists(FilePath);
+        if (exists)
         {
-            if (File.Exists(FilePath))
+            var cfg = Read(FilePath);
+            if (cfg == null)
             {
-                var cfg = JsonSerializer.Deserialize<DockConfig>(File.ReadAllText(FilePath), Json);
-                if (cfg != null) { cfg.Sanitize(); return cfg; }
+                Program.Log("Could not read the configuration: kept aside, and the previous one is read.");
+                Keep(FilePath, "config.unreadable-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".json");
+                if (File.Exists(PreviousPath)) cfg = Read(PreviousPath);
+            }
+            if (cfg != null)
+            {
+                if (cfg.SavedBy != RunningVersion)
+                    Keep(FilePath, "config.before-" + (string.IsNullOrEmpty(RunningVersion) ? "update" : RunningVersion) + ".json");
+                cfg.Sanitize();
+                return cfg;
             }
         }
-        catch (Exception ex) { Program.Log("Could not read the configuration: " + ex.Message); }
-        firstRun = !File.Exists(FilePath);
+        firstRun = !exists;
         // On the first start, the dock speaks the language chosen in the setup window, if it was installed.
         var fresh = new DockConfig { Language = InstalledLanguage(), Appearance = Theme.Auto, Accent = Theme.DefaultAccent };
         fresh.Items.AddRange(DefaultItems());
         return fresh;
+    }
+
+    /// <summary>The settings of a file, without the ones that cannot be read; null if it is not a settings file.</summary>
+    private static DockConfig Read(string file)
+    {
+        string text;
+        try { text = File.ReadAllText(file); } catch (Exception ex) { Program.Log("Could not read " + file + ": " + ex.Message); return null; }
+        try { return JsonSerializer.Deserialize<DockConfig>(text, Json); }
+        catch (Exception ex) { Program.Log("Part of the configuration could not be read: " + ex.Message); }
+        // One setting by itself, so a value that cannot be read drops that setting only.
+        try
+        {
+            if (JsonNode.Parse(text) is not JsonObject all) return null;
+            var kept = new JsonObject();
+            foreach (var (name, value) in all.ToList())
+            {
+                var one = new JsonObject { [name] = value?.DeepClone() };
+                try { JsonSerializer.Deserialize<DockConfig>(one.ToJsonString(), Json); kept[name] = value?.DeepClone(); }
+                catch { Program.Log("Setting dropped, it could not be read: " + name); }
+            }
+            return JsonSerializer.Deserialize<DockConfig>(kept.ToJsonString(), Json);
+        }
+        catch { return null; }
+    }
+
+    /// <summary>A copy of a settings file next to it, if there is none of that name yet.</summary>
+    private static void Keep(string file, string name)
+    {
+        try
+        {
+            string to = Path.Combine(Folder, name);
+            if (!File.Exists(to)) File.Copy(file, to);
+        }
+        catch (Exception ex) { Program.Log("Could not keep a copy of the configuration: " + ex.Message); }
     }
 
     public void Save()
@@ -170,8 +240,11 @@ public sealed class DockConfig
         try
         {
             Directory.CreateDirectory(Folder);
+            SavedBy = RunningVersion;
             var tmp = FilePath + ".tmp";
             File.WriteAllText(tmp, JsonSerializer.Serialize(this, Json));
+            // The file being replaced stays as the previous one, but only if it can be read (never a damaged one).
+            if (File.Exists(FilePath) && Read(FilePath) != null) File.Copy(FilePath, PreviousPath, true);
             File.Move(tmp, FilePath, true);
         }
         catch (Exception ex) { Program.Log("Could not save the configuration: " + ex.Message); }
@@ -348,8 +421,13 @@ internal sealed class DockItem
             return it;
         }
         it.ExePath = Shell.ResolveTarget(cfg.Path);
+        // An icon chosen by hand wins: the one of this item in the settings, or the one set on this very shortcut.
+        if (!string.IsNullOrWhiteSpace(cfg.Icon))
+            it.Icon = cfg.Icon.EndsWith(".ico", StringComparison.OrdinalIgnoreCase) ? Shell.LoadIconFile(cfg.Icon) : Shell.LoadIcon(cfg.Icon, 256);
+        if (it.Icon == null && Shell.ChosenIconPath(cfg.Path) is string chosen)
+            it.Icon = (chosen.EndsWith(".ico", StringComparison.OrdinalIgnoreCase) ? Shell.LoadIconFile(chosen) : null) ?? Shell.LoadIcon(cfg.Path, 256);
         // Packaged apps: their own sharpest logo (Windows may give the dock a 24 px one).
-        if (it.ExePath != null && it.ExePath.StartsWith(WindowTracker.AumidPrefix, StringComparison.Ordinal))
+        if (it.Icon == null && it.ExePath != null && it.ExePath.StartsWith(WindowTracker.AumidPrefix, StringComparison.Ordinal))
             it.Icon = Shell.LoadPackagedIcon(it.ExePath.Substring(WindowTracker.AumidPrefix.Length));
         // The icon the program gives its own shortcuts (Vigía's chosen colour), read from its file.
         if (it.Icon == null && Shell.ThemedIconPath(it.ExePath) is string themed) it.Icon = Shell.LoadIconFile(themed);

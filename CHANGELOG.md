@@ -2,6 +2,29 @@
 
 All notable changes to Muelle. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 2.3.2 - 2026-11-24
+
+### Fixed
+
+- A shortcut with an icon chosen by hand shows it again. Since 2.3.0 the dock took the icon of the program the
+  shortcut opens, from the program's own shortcuts, and dropped the one chosen for that shortcut: a shortcut that
+  opens a document with a red icon showed the program's icon instead. Now the icon chosen for a shortcut (in its
+  properties, from outside the program's folder) wins, and the program's own icon is followed only when there is none.
+- An icon chosen in the settings (`Icon` of an item in `config.json`) now applies to any icon, not only to stacks,
+  and wins over every other.
+
+### Changed
+
+- The settings are never put back to the defaults. A setting that a version cannot read (a value added by a newer
+  version, a damaged entry) is dropped alone and all the others are kept; before, one such value made Muelle start
+  with every setting at its default, and the next save wrote them over the user's. A file that cannot be read at
+  all is kept aside as `config.unreadable-<date>.json` and the previous file, `config.previous.json` (written before
+  every save, never from a damaged file), is read instead.
+- Settings written by a newer version are kept and written back as they were, so going back to an older version
+  and forward again loses nothing.
+- When a different version of Muelle reads the settings for the first time (after an update), it first keeps a
+  copy of them as `config.before-<version>.json`.
+
 ## 2.3.1 - 2026-11-23
 
 ### Fixed
