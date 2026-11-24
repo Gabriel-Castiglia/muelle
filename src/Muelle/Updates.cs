@@ -124,23 +124,23 @@ internal static class Updates
     /// </summary>
     public static async Task<string> CheckAsync(DockManager manager, bool interactive)
     {
-        if (busy) return tr("Ya se está actualizando.", "An update is already under way.");
+        if (busy) return tr("Ya se está actualizando.", "An update is already under way.", "既に更新中です。");
         try
         {
             var latest = await LatestAsync();
             if (!IsNewer(latest.Tag, Current.ToString()))
             {
-                string same = tr($"Tenés la última versión ({Current}).", $"You have the latest version ({Current}).");
+                string same = tr($"Tenés la última versión ({Current}).", $"You have the latest version ({Current}).", $"最新バージョン ({Current}) を使用しています。");
                 if (interactive) MessageBox.Show(same, "Muelle", MessageBoxButton.OK, MessageBoxImage.Information);
                 return same;
             }
             UpdateWindow.Ask(manager, latest);
-            return tr($"Está la versión {latest.Tag}.", $"Version {latest.Tag} is out.");
+            return tr($"Está la versión {latest.Tag}.", $"Version {latest.Tag} is out.", $"バージョン {latest.Tag} が公開されています。");
         }
         catch (Exception ex)
         {
             Program.Log("Could not check for a new version: " + ex.Message);
-            string failed = tr("No se pudo consultar GitHub.", "GitHub could not be reached.");
+            string failed = tr("No se pudo consultar GitHub.", "GitHub could not be reached.", "GitHub に接続できませんでした。");
             if (interactive) MessageBox.Show(failed + "\n\n" + ex.Message, "Muelle", MessageBoxButton.OK, MessageBoxImage.Warning);
             return failed;
         }
@@ -183,9 +183,9 @@ internal static class Updates
             var file = Path.Combine(UpdateDir, SetupName);
             using (var http = NewHttp(TimeSpan.FromMinutes(15)))
             {
-                progress(tr("Comprobando la versión nueva…", "Checking the new version…"));
+                progress(tr("Comprobando la versión nueva…", "Checking the new version…", "新しいバージョンを確認しています…"));
                 var expected = HashFor(await http.GetStringAsync(release.SumsUrl), SetupName)
-                               ?? throw new InvalidOperationException(tr($"El release no tiene el hash de {SetupName}.", $"The release has no hash for {SetupName}."));
+                               ?? throw new InvalidOperationException(tr($"El release no tiene el hash de {SetupName}.", $"The release has no hash for {SetupName}.", $"リリースに {SetupName} のハッシュがありません。"));
                 using (var resp = await http.GetAsync(release.SetupUrl, HttpCompletionOption.ResponseHeadersRead))
                 {
                     resp.EnsureSuccessStatusCode();
@@ -203,17 +203,17 @@ internal static class Updates
                         {
                             lastPct = pct;
                             string amount = pct >= 0 ? pct + " %" : (done >> 20) + " MB";
-                            progress(tr($"Descargando Muelle {release.Tag}… {amount}", $"Downloading Muelle {release.Tag}… {amount}"));
+                            progress(tr($"Descargando Muelle {release.Tag}… {amount}", $"Downloading Muelle {release.Tag}… {amount}", $"Muelle {release.Tag} をダウンロードしています… {amount}"));
                         }
                     }
                 }
                 if (!await VerifyAsync(file, expected))
                     throw new InvalidOperationException(tr("El instalador descargado no coincide con su hash: se borró sin ejecutarlo.",
-                                                           "The downloaded setup does not match its hash: it was deleted without running it."));
+                                                           "The downloaded setup does not match its hash: it was deleted without running it.", "ダウンロードしたセットアップがハッシュと一致しません。実行せずに削除しました。"));
             }
 
             // How Muelle was started, so it comes back the same way; then the setup takes over.
-            progress(tr("Instalando… Muelle se va a cerrar y volver a abrir.", "Installing… Muelle will close and open again."));
+            progress(tr("Instalando… Muelle se va a cerrar y volver a abrir.", "Installing… Muelle will close and open again.", "インストールしています… Muelle はいったん閉じて再び開きます。"));
             WriteRelaunch(RelaunchFile, Environment.GetCommandLineArgs().Skip(1));
             var psi = new ProcessStartInfo(file) { UseShellExecute = true, WorkingDirectory = UpdateDir };
             foreach (var a in SetupArguments(Environment.ProcessId)) psi.ArgumentList.Add(a);
@@ -288,9 +288,10 @@ internal static class Updates
         // 0x800704C7: the administrator permission was refused; 0x80070642: the setup was canceled.
         if (code.Equals("0x800704C7", StringComparison.OrdinalIgnoreCase) || code.Equals("0x80070642", StringComparison.OrdinalIgnoreCase))
             return tr("La actualización se canceló (no se dio el permiso de administrador). Muelle sigue en la versión " + Current + ".",
-                      "The update was canceled (the administrator permission was not given). Muelle stays at version " + Current + ".");
+                      "The update was canceled (the administrator permission was not given). Muelle stays at version " + Current + ".",
+                      "更新はキャンセルされました (管理者の許可が得られませんでした)。Muelle はバージョン " + Current + " のままです。");
         return tr($"La actualización no se pudo instalar (código {code}). Muelle sigue en la versión {Current}; el detalle está en el registro de instalación, en %TEMP%.",
-                  $"The update could not be installed (code {code}). Muelle stays at version {Current}; the details are in the setup log, in %TEMP%.");
+                  $"The update could not be installed (code {code}). Muelle stays at version {Current}; the details are in the setup log, in %TEMP%.", $"更新をインストールできませんでした (コード {code})。Muelle はバージョン {Current} のままです。詳細は %TEMP% のセットアップログにあります。");
     }
 }
 
@@ -363,17 +364,17 @@ internal sealed class UpdateWindow : Window
         header.Children.Add(icon);
         header.Children.Add(new TextBlock
         {
-            Text = done ? tr($"Muelle se actualizó a la versión {Updates.Current}", $"Muelle was updated to version {Updates.Current}")
-                        : tr("Hay una versión nueva de Muelle", "A new version of Muelle is out"),
+            Text = done ? tr($"Muelle se actualizó a la versión {Updates.Current}", $"Muelle was updated to version {Updates.Current}", $"Muelle をバージョン {Updates.Current} に更新しました")
+                        : tr("Hay una versión nueva de Muelle", "A new version of Muelle is out", "Muelle の新しいバージョンが公開されています"),
             FontSize = 17, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap,
         });
         root.Children.Add(header);
         buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         if (done)
         {
-            root.Children.Add(Text(tr("Lo que cambió está en la página del release, en GitHub.", "What changed is on the release page, on GitHub.")));
-            buttons.Children.Add(Button(tr("Ver novedades", "What is new"), false, () => { Updates.OpenPage(); Close(); }));
-            buttons.Children.Add(Button(tr("Cerrar", "Close"), true, Close));
+            root.Children.Add(Text(tr("Lo que cambió está en la página del release, en GitHub.", "What changed is on the release page, on GitHub.", "変更内容は GitHub のリリースページにあります。")));
+            buttons.Children.Add(Button(tr("Ver novedades", "What is new", "新機能を見る"), false, () => { Updates.OpenPage(); Close(); }));
+            buttons.Children.Add(Button(tr("Cerrar", "Close", "閉じる"), true, Close));
         }
         else
         {
@@ -381,16 +382,16 @@ internal sealed class UpdateWindow : Window
             bool auto = release != null && release.CanInstall && Updates.InstalledFolder() != null;
             root.Children.Add(Text(auto
                 ? tr($"Muelle {tag} está en GitHub; tenés la {Updates.Current}. Se puede instalar ahora: se descarga, se comprueba, y Muelle se cierra y vuelve a abrir solo.",
-                     $"Muelle {tag} is on GitHub; you have {Updates.Current}. It can be installed now: it is downloaded, checked, and Muelle closes and opens again by itself.")
+                     $"Muelle {tag} is on GitHub; you have {Updates.Current}. It can be installed now: it is downloaded, checked, and Muelle closes and opens again by itself.", $"Muelle {tag} が GitHub で公開されています (現在は {Updates.Current})。今すぐインストールできます。ダウンロードと検証の後、Muelle は自動的に閉じて再び開きます。")
                 : tr($"Muelle {tag} está en GitHub; tenés la {Updates.Current}. Esta copia no es la instalada, así que la versión nueva se baja desde su página.",
-                     $"Muelle {tag} is on GitHub; you have {Updates.Current}. This copy is not the installed one, so the new version is downloaded from its page.")));
+                     $"Muelle {tag} is on GitHub; you have {Updates.Current}. This copy is not the installed one, so the new version is downloaded from its page.", $"Muelle {tag} が GitHub で公開されています (現在は {Updates.Current})。このコピーはインストール版ではないため、新しいバージョンはリリースページからダウンロードします。")));
             status = Text("");
             status.Visibility = Visibility.Collapsed;
             status.SetResourceReference(TextBlock.ForegroundProperty, "Mu.TextMuted");
             root.Children.Add(status);
-            buttons.Children.Add(Button(tr("Más tarde", "Later"), false, Close, cancel: true));
-            buttons.Children.Add(Button(tr("Ver novedades", "What is new"), false, () => { Updates.OpenPage(release?.Page ?? Updates.Page); Close(); }));
-            if (auto) buttons.Children.Add(Button(tr("Actualizar ahora", "Update now"), true, Install));
+            buttons.Children.Add(Button(tr("Más tarde", "Later", "後で"), false, Close, cancel: true));
+            buttons.Children.Add(Button(tr("Ver novedades", "What is new", "新機能を見る"), false, () => { Updates.OpenPage(release?.Page ?? Updates.Page); Close(); }));
+            if (auto) buttons.Children.Add(Button(tr("Actualizar ahora", "Update now", "今すぐ更新"), true, Install));
         }
         root.Children.Add(buttons);
         Content = root;
@@ -409,7 +410,7 @@ internal sealed class UpdateWindow : Window
         {
             working = false;
             buttons.IsEnabled = true;
-            status.Text = tr("No se pudo actualizar: ", "Could not update: ") + ex.Message;
+            status.Text = tr("No se pudo actualizar: ", "Could not update: ", "更新できませんでした: ") + ex.Message;
             MessageBox.Show(this, status.Text, "Muelle", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }

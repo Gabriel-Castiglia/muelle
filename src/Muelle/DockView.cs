@@ -67,7 +67,7 @@ internal sealed class DockView : FrameworkElement
     private int panelAlpha = -1;
     private Color panelColor;
     private static readonly Brush RemoveBrush = Freeze(new SolidColorBrush(Color.FromRgb(0xE5, 0x48, 0x4D)));
-    private static readonly Typeface Face = new(new FontFamily("Segoe UI Variable Text, Segoe UI"), FontStyles.Normal, FontWeights.Medium, FontStretches.Normal);
+    private static readonly Typeface Face = new(new FontFamily("Segoe UI Variable Text, Segoe UI, Yu Gothic UI, Meiryo UI"), FontStyles.Normal, FontWeights.Medium, FontStretches.Normal);
 
     private static T Freeze<T>(T f) where T : Freezable { f.Freeze(); return f; }
 
@@ -371,7 +371,7 @@ internal sealed class DockView : FrameworkElement
         if (hoverIndex >= 0 && hoverIndex < layout.Count && k > 0.04 && !dragging && !host.MenuOpen)
         {
             var e = layout[hoverIndex];
-            string text = e.IsPlaceholder ? tr("Arrastra aquí tus apps", "Drag your apps here") : e.Item?.Name;
+            string text = e.IsPlaceholder ? tr("Arrastra aquí tus apps", "Drag your apps here", "ここにアプリをドラッグしてください") : e.Item?.Name;
             if (!string.IsNullOrEmpty(text))
             {
                 var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, Face, 12.5, pal.LabelText, ppd);

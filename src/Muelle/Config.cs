@@ -99,7 +99,7 @@ public sealed class DockConfig
     public const int MinIconSize = 24, MaxIconSize = 96;
 
     /// <summary>
-    /// Interface language: "en" or "es". A settings file of version 1.0 has none (that version was Spanish only);
+    /// Interface language: "en", "es" or "ja". A settings file of version 1.0 has none (that version was Spanish only);
     /// it then takes the language chosen in the setup window.
     /// </summary>
     public string Language { get; set; }
@@ -274,7 +274,7 @@ public sealed class DockConfig
         {
             i.Stack.RemoveAll(c => c == null || c.IsStack || string.IsNullOrWhiteSpace(c.Path));
             i.Path = "";
-            if (string.IsNullOrWhiteSpace(i.Name)) i.Name = Loc.tr("Pila", "Stack");
+            if (string.IsNullOrWhiteSpace(i.Name)) i.Name = Loc.tr("Pila", "Stack", "スタック");
         }
     }
 
@@ -361,6 +361,9 @@ internal sealed class DockItem
     public string ExePath;
     /// <summary>What the icon was read from (<see cref="Shell.IconSignature"/>): when it changes, the icon is read again.</summary>
     public string IconSig;
+
+    /// <summary>The icon signature of this item right now (see <see cref="Shell.IconSignature"/>).</summary>
+    public string CurrentIconSig() => Shell.IconSignature(Cfg.Path, Cfg.Icon, ExePath);
     public bool Running;
     /// <summary>Running app that is not pinned: shown at the end of the dock and dropped when it closes; not saved.</summary>
     public bool Transient;
@@ -393,14 +396,14 @@ internal sealed class DockItem
             return "Terminal";
         return System.IO.Path.GetFileName(path).ToLowerInvariant() switch
         {
-            "explorer.exe" or "file explorer.lnk" => Loc.tr("Explorador de archivos", "File Explorer"),
+            "explorer.exe" or "file explorer.lnk" => Loc.tr("Explorador de archivos", "File Explorer", "エクスプローラー"),
             // Shortcuts that Windows creates with English file names on every installation.
-            "control panel.lnk" => Loc.tr("Panel de control", "Control Panel"),
-            "remote desktop connection.lnk" => Loc.tr("Conexión a Escritorio remoto", "Remote Desktop Connection"),
-            "notepad.exe" => Loc.tr("Bloc de notas", "Notepad"),
-            "calc.exe" => Loc.tr("Calculadora", "Calculator"),
+            "control panel.lnk" => Loc.tr("Panel de control", "Control Panel", "コントロール パネル"),
+            "remote desktop connection.lnk" => Loc.tr("Conexión a Escritorio remoto", "Remote Desktop Connection", "リモート デスクトップ接続"),
+            "notepad.exe" => Loc.tr("Bloc de notas", "Notepad", "メモ帳"),
+            "calc.exe" => Loc.tr("Calculadora", "Calculator", "電卓"),
             "mspaint.exe" => "Paint",
-            "taskmgr.exe" => Loc.tr("Administrador de tareas", "Task Manager"),
+            "taskmgr.exe" => Loc.tr("Administrador de tareas", "Task Manager", "タスク マネージャー"),
             "powershell.exe" => "Windows PowerShell",
             "msedge.exe" => "Microsoft Edge",
             "chrome.exe" => "Google Chrome",
@@ -433,7 +436,7 @@ internal sealed class DockItem
         if (it.Icon == null && Shell.ThemedIconPath(it.ExePath) is string themed) it.Icon = Shell.LoadIconFile(themed);
         it.Icon ??= Shell.LoadSmallNativeIcon(it.ExePath) ?? Shell.LoadIcon(cfg.Path, 256);
         if (it.Icon == null && it.ExePath != null && it.ExePath != cfg.Path) it.Icon = Shell.LoadIcon(it.ExePath, 256);
-        it.IconSig = Shell.IconSignature(it.ExePath);
+        it.IconSig = it.CurrentIconSig();
         return it;
     }
 

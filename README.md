@@ -15,7 +15,7 @@ PDF manual: [`docs/Muelle-manual-en.pdf`](docs/Muelle-manual-en.pdf)
 
 Muelle is an application dock for Windows 10 and 11, written in C# with .NET 10 and WPF. It can be a
 floating dock with magnification under the pointer, in the style of macOS, or a fixed panel from edge
-to edge, in the style of Ubuntu. Its interface is available in English and Spanish; it starts in the
+to edge, in the style of Ubuntu. Its interface is available in English, Spanish and Japanese; it starts in the
 language chosen during setup (English when it runs without installation) and can be changed at any
 time. It can be light, dark or follow Windows, in one of twelve colours. Several shortcuts can share one icon
 as a stack, each screen can have its own icons, and new versions install themselves. "Muelle" is the Spanish
@@ -35,15 +35,15 @@ are three ways to get Muelle, all built by `scripts\build.ps1` into the `dist` f
 
 | File | What it is |
 |---|---|
-| `muelle-setup.exe` | Setup program, in English or Spanish. The usual way to install. |
+| `muelle-setup.exe` | Setup program, in English, Spanish or Japanese. The usual way to install. |
 | `muelle.msi` | The same installation as a Windows Installer package, for silent installs: `msiexec /i muelle.msi /qn`. |
 | `Muelle.exe` | The program on its own; it runs without installation from any folder. |
 
 The `SHA256SUMS.txt` file of each release lets you check a download first, in PowerShell:
 `Get-FileHash muelle-setup.exe`.
 
-The setup program opens a window with a language menu in its top right corner, and every page
-changes language at once. It installs Muelle for all users in `C:\Program Files\Muelle`, which takes
+The setup program opens a window with a language menu in its top right corner (English first, then
+Spanish and Japanese), and every page changes language at once. It installs Muelle for all users in `C:\Program Files\Muelle`, which takes
 administrator rights (Windows asks for them when installation starts), and adds Muelle to the Start
 menu. The language chosen in the setup window is the one the dock uses when it starts for the first
 time.
@@ -78,26 +78,28 @@ For an uninstall without windows: `muelle-setup.exe /uninstall /quiet`.
   front; with several windows, each click brings the next one. A click on the only window that is
   already in front minimizes it. Shift+click or a middle click opens a new window.
 - The icon bounces while an application starts, and a dot under an icon marks an open application.
-- An icon follows its app: when the app is updated, or changes the colour of its own icon (as Vigía does with
-  its theme colour), the dock shows the new one within 15 seconds, without restarting. For a program, the dock
+- An icon follows its app: when the app is updated (Store apps too), changes the colour of its own icon (as
+  Vigía does with its theme colour), or its shortcut or chosen icon file changes, the dock shows the new one
+  within 15 seconds, without restarting. For a program, the dock
   takes the icon that the program's own shortcuts name when that file lives in the program's folder; an icon
   chosen by hand for one shortcut, from anywhere else, is left alone.
-- Open applications that are not in the dock appear at its end and leave when they close. "Keep in
+- Open applications that are not in the dock appear at its end and leave when they close. "Pin to
   dock" in their menu, or dragging them among the others, keeps them.
 - Applications are added by dropping a shortcut or an `.exe` on the dock, with "Add application…" in
   the dock menu, or from Settings. Store apps (Teams, Terminal…) and shell objects such as Control
   Panel can be added too.
 - Icons are reordered by dragging them along the dock and removed by dragging them out of it. "Lock
-  icons" prevents both, to avoid accidental changes.
+  dock" prevents both, and pinning, unpinning and renaming from the menu, to avoid accidental changes.
 - A stack is one icon that holds several shortcuts: a click unfolds them beside it. See [Stacks](#stacks).
 - When the icons do not fit on a screen, they shrink on that screen only.
 - With a full-screen application (a video, a game) the dock moves behind it.
 
-Right-clicking an icon offers Show (or Open), Open another window, Run as administrator, Open file
-location, End task (for applications with their own processes), Move to stack (when the dock has a
-stack), and Keep in dock or Remove from dock. Right-clicking the dock offers Add application…, New
-stack…, the switch between floating dock and fixed panel, Lock icons, the language and appearance menus,
-Settings…, Check for updates, About Muelle… and Quit Muelle.
+Right-clicking an icon offers a short menu: Open another window (or Open, when the app is closed),
+Rename…, Pin to dock or Unpin from dock, and More (Run as administrator, Open file location, Move to
+stack), then Lock dock, Settings… and Quit Muelle. End task comes last and apart, only while the app is
+running. Right-clicking an empty part of the dock offers Add application…, New stack…, Lock dock,
+Settings… and Quit Muelle. Everything else (style, language, appearance, updates, About) is in Settings.
+Renaming with an empty name goes back to the program's own name.
 
 ## Stacks
 
@@ -141,7 +143,7 @@ Right-click the dock → Settings…. Every change applies at once.
 | Behavior | Reserve the screen strip, hide automatically, show open apps that are not pinned, lock the icons, start with Windows, look for new versions. |
 | Appearance | As Windows, light or dark; one of twelve colours. |
 | Icons | Size (24 to 96 px), magnification under the pointer (up to twice the size), background of the floating dock. |
-| Language | English or Spanish. |
+| Language | English, Spanish or Japanese. |
 | Dock applications | The list of pinned applications and stacks, with Add, New stack, Edit stack (or a double click), Remove, Move up and Move down; with its own icons per screen, the screen whose icons are listed. |
 
 ## Appearance
@@ -183,9 +185,9 @@ The requests carry nothing but the program name and its version. The daily check
 
 ## Language
 
-The interface is in English and Spanish. The language can be changed from the dock menu (Idioma /
-Language, labeled in both languages so it can be found from either one) or in Settings, and it is
-remembered. The names of the applications that Muelle adds on its first start (File Explorer, Notepad,
+The interface is in English, Spanish and Japanese. The language is changed in Settings (Language /
+Idioma / 言語, labeled in the three languages so it can be found from any of them), and it is
+remembered. The setup window starts in English unless Muelle is already installed in another language. The names of the applications that Muelle adds on its first start (File Explorer, Notepad,
 Calculator…) follow the interface language.
 
 ## Files
@@ -234,7 +236,7 @@ and Pillow).
 |---|---|
 | `src/Muelle` | The program. |
 | `installer/Msi` | The MSI package (WiX). |
-| `installer/SetupUI` | The setup window, in English and Spanish (.NET Framework 4.7.2, WPF). |
+| `installer/SetupUI` | The setup window, in English, Spanish and Japanese (.NET Framework 4.7.2, WPF). |
 | `installer/Setup` | The setup program that carries the setup window and the MSI (WiX bundle). |
 | `scripts` | Build, images, icon and manuals. |
 | `assets` | The engraving the icon comes from. |

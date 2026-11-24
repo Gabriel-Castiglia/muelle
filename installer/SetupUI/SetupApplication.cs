@@ -98,8 +98,8 @@ internal sealed class SetupApplication : BootstrapperApplication
     private bool Interactive => Command.Display == Display.Full;
 
     /// <summary>
-    /// The language of an installed Muelle when there is one (uninstall, repair), otherwise the language of
-    /// Windows if it is Spanish, otherwise English. The user can change it in the window at any time.
+    /// The language of an installed Muelle when there is one (uninstall, repair), otherwise English. The user can
+    /// change it in the window at any time (English, Spanish, Japanese).
     /// </summary>
     private static UiLanguage InitialLanguage()
     {
@@ -109,7 +109,7 @@ internal sealed class SetupApplication : BootstrapperApplication
             if (key?.GetValue("Language") is string code && code.Length > 0) return Loc.FromCode(code);
         }
         catch { }
-        return System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "es" ? UiLanguage.Es : UiLanguage.En;
+        return UiLanguage.En;
     }
 
     // ---------------- Muelle's own updates ----------------

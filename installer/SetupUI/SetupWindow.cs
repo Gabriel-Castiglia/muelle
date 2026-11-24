@@ -58,7 +58,7 @@ internal sealed class SetupWindow : Window
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Background = new SolidColorBrush(Color.FromRgb(0xF6, 0xF7, 0xF9));
-        FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
+        FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI, Yu Gothic UI, Meiryo UI");
         FontSize = 13;
         try { Icon = BitmapFrame.Create(new Uri("pack://application:,,,/muelle.ico")); } catch { }
 
@@ -79,8 +79,8 @@ internal sealed class SetupWindow : Window
 
     private void Redraw()
     {
-        Title = tr("Instalación de Muelle", "Muelle Setup");
-        if (subtitle != null) subtitle.Text = tr("Dock para Windows  ·  versión ", "A dock for Windows  ·  version ") + Version;
+        Title = tr("Instalación de Muelle", "Muelle Setup", "Muelle セットアップ");
+        if (subtitle != null) subtitle.Text = tr("Dock para Windows  ·  versión ", "A dock for Windows  ·  version ", "Windows 用ドック  ·  バージョン ") + Version;
         redraw?.Invoke();
     }
 
@@ -110,14 +110,13 @@ internal sealed class SetupWindow : Window
         Grid.SetColumn(titles, 1);
         grid.Children.Add(titles);
 
-        // The language menu: its label carries both languages, so it can be found from either one.
+        // The language menu: its label carries every language, so it can be found from either one.
         var language = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
-        language.Children.Add(new TextBlock { Text = "Idioma / Language", FontSize = 11.5, Foreground = Brushes.DimGray, Margin = new Thickness(0, 0, 0, 3) });
+        language.Children.Add(new TextBlock { Text = "Language / Idioma / 言語", FontSize = 11.5, Foreground = Brushes.DimGray, Margin = new Thickness(0, 0, 0, 3) });
         var combo = new ComboBox { Width = 120 };
-        combo.Items.Add("English");
-        combo.Items.Add("Español");
-        combo.SelectedIndex = Loc.Current == UiLanguage.Es ? 1 : 0;
-        combo.SelectionChanged += (s, e) => Loc.Current = combo.SelectedIndex == 1 ? UiLanguage.Es : UiLanguage.En;
+        foreach (var (_, name) in Loc.All) combo.Items.Add(name);
+        combo.SelectedIndex = Array.FindIndex(Loc.All, l => l.Lang == Loc.Current);
+        combo.SelectionChanged += (s, e) => { if (combo.SelectedIndex >= 0) Loc.Current = Loc.All[combo.SelectedIndex].Lang; };
         language.Children.Add(combo);
         Grid.SetColumn(language, 2);
         grid.Children.Add(language);
@@ -134,7 +133,7 @@ internal sealed class SetupWindow : Window
 
     public void ShowLoading() => Show(() =>
     {
-        Body(tr("Revisando este equipo…", "Checking this computer…"));
+        Body(tr("Revisando este equipo…", "Checking this computer…", "このコンピューターを確認しています…"));
         Buttons();
     });
 
@@ -145,45 +144,45 @@ internal sealed class SetupWindow : Window
             case SetupState.Install:
                 Show(() =>
                 {
-                    Body(tr("Muelle se instalará para todos los usuarios en:", "Muelle will be installed for all users in:"),
+                    Body(tr("Muelle se instalará para todos los usuarios en:", "Muelle will be installed for all users in:", "Muelle はすべてのユーザー向けに次の場所へインストールされます:"),
                          InstallFolder, null, LicenseLine());
-                    Buttons((tr("Instalar", "Install"), () => app?.Plan(LaunchAction.Install), true), CancelButton());
+                    Buttons((tr("Instalar", "Install", "インストール"), () => app?.Plan(LaunchAction.Install), true), CancelButton());
                 });
                 break;
             case SetupState.Upgrade:
                 Show(() =>
                 {
                     Body(string.Format(tr("Muelle {0} está instalado. Se actualizará a la versión {1}; la configuración de cada usuario se conserva.",
-                                          "Muelle {0} is installed. It will be updated to version {1}; each user's settings are kept."),
+                                          "Muelle {0} is installed. It will be updated to version {1}; each user's settings are kept.", "Muelle {0} がインストールされています。バージョン {1} に更新されます。各ユーザーの設定は保持されます。"),
                                        OlderVersion, Version), null, null, LicenseLine());
-                    Buttons((tr("Actualizar", "Update"), () => app?.Plan(LaunchAction.Install), true), CancelButton());
+                    Buttons((tr("Actualizar", "Update", "更新"), () => app?.Plan(LaunchAction.Install), true), CancelButton());
                 });
                 break;
             case SetupState.Maintenance:
                 Show(() =>
                 {
-                    Body(string.Format(tr("Muelle {0} ya está instalado en este equipo.", "Muelle {0} is already installed on this computer."), Version),
+                    Body(string.Format(tr("Muelle {0} ya está instalado en este equipo.", "Muelle {0} is already installed on this computer.", "Muelle {0} はこのコンピューターに既にインストールされています。"), Version),
                          null, tr("Reparar vuelve a copiar sus archivos; desinstalar lo quita del equipo.",
-                                  "Repair copies its files again; uninstall removes it from the computer."));
-                    Buttons((tr("Reparar", "Repair"), () => app?.Plan(LaunchAction.Repair), false),
-                            (tr("Desinstalar", "Uninstall"), () => app?.Plan(LaunchAction.Uninstall), false),
+                                  "Repair copies its files again; uninstall removes it from the computer.", "修復はファイルをもう一度コピーします。アンインストールはコンピューターから削除します。"));
+                    Buttons((tr("Reparar", "Repair", "修復"), () => app?.Plan(LaunchAction.Repair), false),
+                            (tr("Desinstalar", "Uninstall", "アンインストール"), () => app?.Plan(LaunchAction.Uninstall), false),
                             CloseButton(true));
                 });
                 break;
             case SetupState.Uninstall:
                 Show(() =>
                 {
-                    Body(tr("Muelle se quitará de este equipo.", "Muelle will be removed from this computer."), null,
+                    Body(tr("Muelle se quitará de este equipo.", "Muelle will be removed from this computer.", "Muelle をこのコンピューターから削除します。"), null,
                          tr("La configuración de cada usuario (carpeta %APPDATA%\\Muelle) se conserva.",
-                            "Each user's settings (the %APPDATA%\\Muelle folder) are kept."));
-                    Buttons((tr("Desinstalar", "Uninstall"), () => app?.Plan(LaunchAction.Uninstall), true), CancelButton());
+                            "Each user's settings (the %APPDATA%\\Muelle folder) are kept.", "各ユーザーの設定 (%APPDATA%\\Muelle フォルダー) は保持されます。"));
+                    Buttons((tr("Desinstalar", "Uninstall", "アンインストール"), () => app?.Plan(LaunchAction.Uninstall), true), CancelButton());
                 });
                 break;
             case SetupState.Newer:
                 Show(() =>
                 {
                     Body(string.Format(tr("Ya está instalada una versión más nueva de Muelle ({0}). Esta versión no se puede instalar encima.",
-                                          "A newer version of Muelle ({0}) is already installed. This version cannot be installed over it."),
+                                          "A newer version of Muelle ({0}) is already installed. This version cannot be installed over it.", "より新しいバージョンの Muelle ({0}) が既にインストールされています。このバージョンを上書きインストールすることはできません。"),
                                        NewerVersion));
                     Buttons(CloseButton(true));
                 });
@@ -198,15 +197,15 @@ internal sealed class SetupWindow : Window
         {
             string text = action switch
             {
-                LaunchAction.Uninstall => tr("Desinstalando Muelle…", "Uninstalling Muelle…"),
-                LaunchAction.Repair => tr("Reparando Muelle…", "Repairing Muelle…"),
-                _ => OlderVersion != null ? tr("Actualizando Muelle…", "Updating Muelle…") : tr("Instalando Muelle…", "Installing Muelle…"),
+                LaunchAction.Uninstall => tr("Desinstalando Muelle…", "Uninstalling Muelle…", "Muelle をアンインストールしています…"),
+                LaunchAction.Repair => tr("Reparando Muelle…", "Repairing Muelle…", "Muelle を修復しています…"),
+                _ => OlderVersion != null ? tr("Actualizando Muelle…", "Updating Muelle…", "Muelle を更新しています…") : tr("Instalando Muelle…", "Installing Muelle…", "Muelle をインストールしています…"),
             };
             var panel = BodyPanel(text);
             if (bar.Parent is Panel old) old.Children.Remove(bar);
             panel.Children.Add(bar);
             page.Content = panel;
-            Buttons((tr("Cancelar", "Cancel"), () => { if (app != null) app.Canceled = true; }, false));
+            Buttons((tr("Cancelar", "Cancel", "キャンセル"), () => { if (app != null) app.Canceled = true; }, false));
         });
     }
 
@@ -220,26 +219,26 @@ internal sealed class SetupWindow : Window
         {
             if (canceled)
             {
-                Body(tr("Se canceló. El equipo quedó como estaba.", "Canceled. The computer was left as it was."));
+                Body(tr("Se canceló. El equipo quedó como estaba.", "Canceled. The computer was left as it was.", "キャンセルしました。コンピューターは元の状態のままです。"));
                 Buttons(CloseButton(true));
                 return;
             }
             if (!ok)
             {
-                Body(tr("La operación no se pudo completar.", "The operation could not be completed."),
+                Body(tr("La operación no se pudo completar.", "The operation could not be completed.", "操作を完了できませんでした。"),
                      null, ErrorText ?? app?.LastError);
-                Buttons((tr("Ver registro", "View log"), OpenLog, false), CloseButton(true));
+                Buttons((tr("Ver registro", "View log", "ログを表示"), OpenLog, false), CloseButton(true));
                 return;
             }
             string done = action switch
             {
-                LaunchAction.Uninstall => tr("Muelle se desinstaló.", "Muelle was uninstalled."),
-                LaunchAction.Repair => tr("Muelle quedó reparado.", "Muelle was repaired."),
-                _ => tr("Muelle quedó instalado. Está en el menú Inicio.", "Muelle is installed. It is in the Start menu."),
+                LaunchAction.Uninstall => tr("Muelle se desinstaló.", "Muelle was uninstalled.", "Muelle をアンインストールしました。"),
+                LaunchAction.Repair => tr("Muelle quedó reparado.", "Muelle was repaired.", "Muelle を修復しました。"),
+                _ => tr("Muelle quedó instalado. Está en el menú Inicio.", "Muelle is installed. It is in the Start menu.", "Muelle をインストールしました。スタートメニューにあります。"),
             };
-            Body(done, null, restart ? tr("Hay que reiniciar Windows para terminar.", "Windows must be restarted to finish.") : null);
+            Body(done, null, restart ? tr("Hay que reiniciar Windows para terminar.", "Windows must be restarted to finish.", "完了するには Windows を再起動する必要があります。") : null);
             if (action == LaunchAction.Install)
-                Buttons((tr("Abrir Muelle", "Open Muelle"), LaunchMuelle, true), CloseButton(false));
+                Buttons((tr("Abrir Muelle", "Open Muelle", "Muelle を開く"), LaunchMuelle, true), CloseButton(false));
             else
                 Buttons(CloseButton(true));
         });
@@ -267,15 +266,15 @@ internal sealed class SetupWindow : Window
 
     private UIElement LicenseLine()
     {
-        var link = new Hyperlink(new Run(tr("Licencia Pública General GNU, versión 2", "GNU General Public License, version 2")))
+        var link = new Hyperlink(new Run(tr("Licencia Pública General GNU, versión 2", "GNU General Public License, version 2", "GNU 一般公衆利用許諾書 バージョン 2")))
         {
             NavigateUri = new Uri(LicenseUrl),
         };
         link.RequestNavigate += (s, e) => Open(LicenseUrl);
         var text = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 16, 0, 0) };
-        text.Inlines.Add(new Run(tr("Muelle es software libre, bajo la ", "Muelle is free software, under the ")));
+        text.Inlines.Add(new Run(tr("Muelle es software libre, bajo la ", "Muelle is free software, under the ", "Muelle はフリーソフトウェアです。ライセンス: ")));
         text.Inlines.Add(link);
-        text.Inlines.Add(new Run("."));
+        text.Inlines.Add(new Run(tr(".", ".", "。")));
         return text;
     }
 
@@ -290,8 +289,8 @@ internal sealed class SetupWindow : Window
         }
     }
 
-    private (string, Action, bool) CancelButton() => (tr("Cancelar", "Cancel"), Close, false);
-    private (string, Action, bool) CloseButton(bool isDefault) => (tr("Cerrar", "Close"), Close, isDefault);
+    private (string, Action, bool) CancelButton() => (tr("Cancelar", "Cancel", "キャンセル"), Close, false);
+    private (string, Action, bool) CloseButton(bool isDefault) => (tr("Cerrar", "Close", "閉じる"), Close, isDefault);
 
     private void OnClosing(object sender, System.ComponentModel.CancelEventArgs e)
     {
@@ -302,7 +301,7 @@ internal sealed class SetupWindow : Window
         }
         // While installing, closing the window means canceling; the engine rolls the changes back.
         e.Cancel = true;
-        var answer = MessageBox.Show(this, tr("¿Cancelar la operación? Se deshará lo hecho hasta ahora.", "Cancel the operation? What was done so far will be undone."),
+        var answer = MessageBox.Show(this, tr("¿Cancelar la operación? Se deshará lo hecho hasta ahora.", "Cancel the operation? What was done so far will be undone.", "操作をキャンセルしますか? ここまでの処理は元に戻されます。"),
                                      "Muelle", MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (answer == MessageBoxResult.Yes && app != null) app.Canceled = true;
     }

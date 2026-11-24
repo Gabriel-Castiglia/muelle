@@ -24,9 +24,9 @@ namespace Muelle;
 /// An accent colour: the tile of the icon (icons/muelle_&lt;key&gt;.ico, drawn by scripts/make_icon.py, which
 /// keeps the same keys and the light tones as tiles) and the highlight colour of the windows and the dock.
 /// </summary>
-internal sealed record Accent(string Key, string Es, string En, Color Light, Color Dark)
+internal sealed record Accent(string Key, string Es, string En, string Ja, Color Light, Color Dark)
 {
-    public string Name => Loc.tr(Es, En);
+    public string Name => Loc.tr(Es, En, Ja);
 }
 
 /// <summary>
@@ -39,18 +39,18 @@ internal static class Theme
 
     public static readonly Accent[] Accents =
     {
-        new("blue", "Azul", "Blue", Rgb(0x1F5FD1), Rgb(0x6E9BFF)),          // the sea: the default
-        new("gold", "Dorado", "Gold", Rgb(0x9A6F00), Rgb(0xE2B84C)),
-        new("purple", "Morado", "Purple", Rgb(0x5B2A86), Rgb(0xB392E0)),
-        new("sky", "Celeste", "Sky blue", Rgb(0x1A8CD8), Rgb(0x5CB8F0)),
-        new("ember", "Naranja", "Orange", Rgb(0xD9652F), Rgb(0xF08A5D)),
-        new("red", "Rojo", "Red", Rgb(0xC8102E), Rgb(0xF2545B)),
-        new("yellow", "Amarillo", "Yellow", Rgb(0xB88A00), Rgb(0xF5C842)),
-        new("green", "Verde", "Green", Rgb(0x1E8A43), Rgb(0x4CC27A)),
-        new("teal", "Verde azulado", "Teal", Rgb(0x00796B), Rgb(0x4DB6AC)),
-        new("pink", "Rosa", "Pink", Rgb(0xC2185B), Rgb(0xF06292)),
-        new("black", "Negro", "Black", Rgb(0x1D1D1F), Rgb(0xC7C7CC)),
-        new("white", "Blanco", "White", Rgb(0x8E8E93), Rgb(0xF5F5F7)),
+        new("blue", "Azul", "Blue", "青", Rgb(0x1F5FD1), Rgb(0x6E9BFF)),          // the sea: the default
+        new("gold", "Dorado", "Gold", "金", Rgb(0x9A6F00), Rgb(0xE2B84C)),
+        new("purple", "Morado", "Purple", "紫", Rgb(0x5B2A86), Rgb(0xB392E0)),
+        new("sky", "Celeste", "Sky blue", "空色", Rgb(0x1A8CD8), Rgb(0x5CB8F0)),
+        new("ember", "Naranja", "Orange", "オレンジ", Rgb(0xD9652F), Rgb(0xF08A5D)),
+        new("red", "Rojo", "Red", "赤", Rgb(0xC8102E), Rgb(0xF2545B)),
+        new("yellow", "Amarillo", "Yellow", "黄", Rgb(0xB88A00), Rgb(0xF5C842)),
+        new("green", "Verde", "Green", "緑", Rgb(0x1E8A43), Rgb(0x4CC27A)),
+        new("teal", "Verde azulado", "Teal", "青緑", Rgb(0x00796B), Rgb(0x4DB6AC)),
+        new("pink", "Rosa", "Pink", "ピンク", Rgb(0xC2185B), Rgb(0xF06292)),
+        new("black", "Negro", "Black", "黒", Rgb(0x1D1D1F), Rgb(0xC7C7CC)),
+        new("white", "Blanco", "White", "白", Rgb(0x8E8E93), Rgb(0xF5F5F7)),
     };
 
     /// <summary>Appearance settings: as Windows, light or dark.</summary>

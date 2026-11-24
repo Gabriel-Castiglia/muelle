@@ -54,7 +54,7 @@ internal sealed class StackWindow : Window
         this.list = list;
         old = stack;
         this.index = index;
-        Stack = stack?.Cfg.Clone() ?? new DockItemConfig { Name = tr("Pila", "Stack"), Stack = new() };
+        Stack = stack?.Cfg.Clone() ?? new DockItemConfig { Name = tr("Pila", "Stack", "スタック"), Stack = new() };
         foreach (var c in Stack.Stack) shown.Add(DockItem.From(c));
 
         Width = 460;
@@ -69,7 +69,7 @@ internal sealed class StackWindow : Window
 
     private void Build()
     {
-        Title = old == null ? tr("Nueva pila", "New stack") : tr("Editar pila", "Edit stack");
+        Title = old == null ? tr("Nueva pila", "New stack", "新しいスタック") : tr("Editar pila", "Edit stack", "スタックの編集");
         var root = new StackPanel { Margin = new Thickness(20, 16, 20, 14) };
 
         // Icon and name.
@@ -79,32 +79,32 @@ internal sealed class StackWindow : Window
         DockPanel.SetDock(preview, Dock.Left);
         head.Children.Add(preview);
         var fields = new StackPanel();
-        fields.Children.Add(new TextBlock { Text = tr("Nombre:", "Name:"), Margin = new Thickness(0, 0, 0, 3) });
+        fields.Children.Add(new TextBlock { Text = tr("Nombre:", "Name:", "名前:"), Margin = new Thickness(0, 0, 0, 3) });
         nameBox = new TextBox { Text = Stack.Name, Margin = new Thickness(0, 0, 0, 8) };
         nameBox.TextChanged += (s, e) => Stack.Name = nameBox.Text;
         fields.Children.Add(nameBox);
         var iconRow = new WrapPanel();
-        iconRow.Children.Add(Button(tr("Elegir icono…", "Choose icon…"), ChooseIcon));
-        iconRow.Children.Add(Button(tr("Icono automático", "Automatic icon"), () => { Stack.Icon = null; RefreshPreview(); }));
+        iconRow.Children.Add(Button(tr("Elegir icono…", "Choose icon…", "アイコンを選択…"), ChooseIcon));
+        iconRow.Children.Add(Button(tr("Icono automático", "Automatic icon", "自動アイコン"), () => { Stack.Icon = null; RefreshPreview(); }));
         fields.Children.Add(iconRow);
         head.Children.Add(fields);
         root.Children.Add(head);
 
         // Shortcuts.
-        root.Children.Add(new TextBlock { Text = tr("Accesos de la pila:", "Shortcuts in the stack:"), Margin = new Thickness(0, 0, 0, 4) });
+        root.Children.Add(new TextBlock { Text = tr("Accesos de la pila:", "Shortcuts in the stack:", "スタック内のショートカット:"), Margin = new Thickness(0, 0, 0, 4) });
         entries = new ListBox { Height = 180, Margin = new Thickness(0, 0, 0, 8) };
         root.Children.Add(entries);
         var buttons = new WrapPanel();
-        buttons.Children.Add(Button(tr("Agregar…", "Add…"), AddWithDialog));
-        buttons.Children.Add(Button(tr("Quitar", "Remove"), () => WithSelected(i => { RemoveAt(i); RefreshList(i - 1); })));
-        buttons.Children.Add(Button(tr("Subir", "Move up"), () => WithSelected(i => { if (i > 0) { Move(i, i - 1); RefreshList(i - 1); } })));
-        buttons.Children.Add(Button(tr("Bajar", "Move down"), () => WithSelected(i => { if (i < shown.Count - 1) { Move(i, i + 1); RefreshList(i + 1); } })));
+        buttons.Children.Add(Button(tr("Agregar…", "Add…", "追加…"), AddWithDialog));
+        buttons.Children.Add(Button(tr("Quitar", "Remove", "削除"), () => WithSelected(i => { RemoveAt(i); RefreshList(i - 1); })));
+        buttons.Children.Add(Button(tr("Subir", "Move up", "上へ"), () => WithSelected(i => { if (i > 0) { Move(i, i - 1); RefreshList(i - 1); } })));
+        buttons.Children.Add(Button(tr("Bajar", "Move down", "下へ"), () => WithSelected(i => { if (i < shown.Count - 1) { Move(i, i + 1); RefreshList(i + 1); } })));
         root.Children.Add(buttons);
 
         var footer = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 10, 0, 0) };
-        var cancel = Button(tr("Cancelar", "Cancel"), Close);
+        var cancel = Button(tr("Cancelar", "Cancel", "キャンセル"), Close);
         cancel.IsCancel = true;
-        var save = Button(tr("Guardar", "Save"), Save);
+        var save = Button(tr("Guardar", "Save", "保存"), Save);
         save.IsDefault = true;
         save.Margin = new Thickness(0);
         footer.Children.Add(cancel);
@@ -147,7 +147,7 @@ internal sealed class StackWindow : Window
     /// <summary>Puts the stack in the dock (replacing the one edited) and closes.</summary>
     public void Save()
     {
-        if (string.IsNullOrWhiteSpace(Stack.Name)) Stack.Name = tr("Pila", "Stack");
+        if (string.IsNullOrWhiteSpace(Stack.Name)) Stack.Name = tr("Pila", "Stack", "スタック");
         Stack.Name = Stack.Name.Trim();
         manager.PutStack(list, Stack.Clone(), old, index);
         Close();
@@ -158,9 +158,9 @@ internal sealed class StackWindow : Window
     {
         var dlg = new Microsoft.Win32.OpenFileDialog
         {
-            Title = tr("Agregar a la pila", "Add to the stack"),
-            Filter = tr("Programas y accesos directos", "Programs and shortcuts") + "|*.exe;*.lnk;*.url;*.bat;*.cmd|"
-                   + tr("Todos los archivos", "All files") + "|*.*",
+            Title = tr("Agregar a la pila", "Add to the stack", "スタックに追加"),
+            Filter = tr("Programas y accesos directos", "Programs and shortcuts", "プログラムとショートカット") + "|*.exe;*.lnk;*.url;*.bat;*.cmd|"
+                   + tr("Todos los archivos", "All files", "すべてのファイル") + "|*.*",
             Multiselect = true,
             DereferenceLinks = false,
             InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu),
@@ -172,9 +172,9 @@ internal sealed class StackWindow : Window
     {
         var dlg = new Microsoft.Win32.OpenFileDialog
         {
-            Title = tr("Icono de la pila", "Stack icon"),
-            Filter = tr("Iconos, programas e imágenes", "Icons, programs and pictures") + "|*.ico;*.exe;*.dll;*.png;*.lnk|"
-                   + tr("Todos los archivos", "All files") + "|*.*",
+            Title = tr("Icono de la pila", "Stack icon", "スタックのアイコン"),
+            Filter = tr("Iconos, programas e imágenes", "Icons, programs and pictures", "アイコン、プログラム、画像") + "|*.ico;*.exe;*.dll;*.png;*.lnk|"
+                   + tr("Todos los archivos", "All files", "すべてのファイル") + "|*.*",
             DereferenceLinks = false,
         };
         if (dlg.ShowDialog(this) == true) { Stack.Icon = dlg.FileName; RefreshPreview(); }

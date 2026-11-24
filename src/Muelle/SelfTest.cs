@@ -344,10 +344,24 @@ internal static class SelfTest
         Check("an empty stack says so", dock.BuildStackMenu(empty).Items.Count == 3);
         var right = dock.BuildMenu(saved, 0);
         Check("the menu of a stack offers to edit it", right.Items.OfType<System.Windows.Controls.MenuItem>()
-              .Any(i => (i.Header as string) == Loc.tr("Editar pila…", "Edit stack…")));
-        var plain = dock.BuildMenu(m.Items.First(i => !i.IsStack), 0);
-        Check("the menu of an icon offers to move it to a stack", plain.Items.OfType<System.Windows.Controls.MenuItem>()
-              .Any(i => (i.Header as string) == Loc.tr("Mover a la pila", "Move to stack")));
+              .Any(i => (i.Header as string) == Loc.tr("Editar pila…", "Edit stack…", "スタックを編集…")));
+        var plain = dock.BuildMenu(m.Items.First(i => !i.IsStack && !i.Transient), 0);
+        static IEnumerable<System.Windows.Controls.MenuItem> All(System.Windows.Controls.ItemsControl c) =>
+            c.Items.OfType<System.Windows.Controls.MenuItem>().SelectMany(i => All(i).Prepend(i));
+        bool Has(System.Windows.Controls.ItemsControl c, string es, string en, string ja) => All(c).Any(i => (i.Header as string) == Loc.tr(es, en, ja));
+        Check("the menu of an icon offers to move it to a stack, under \"More\"", Has(plain, "Mover a la pila", "Move to stack", "スタックへ移動"));
+        Check("the menu of an icon offers to rename and unpin it", Has(plain, "Renombrar…", "Rename…", "名前の変更…")
+              && Has(plain, "Liberar del dock", "Unpin from dock", "ドックから外す"));
+        Check("the menu of an icon is short (dock options live in Settings)", plain.Items.Count <= 12
+              && !Has(plain, "Apariencia", "Appearance", "外観"));
+        var bare = dock.BuildMenu(null, 0);
+        Check("the menu of the empty dock adds apps and opens Settings", Has(bare, "Agregar aplicación…", "Add application…", "アプリケーションを追加…")
+              && Has(bare, "Configuración…", "Settings…", "設定…"));
+        var before = Loc.Current;
+        foreach (var (lang, _) in Loc.All) { Loc.Current = lang; Check("menu in " + Loc.Code(lang), dock.BuildMenu(null, 0).Items.Count > 0); }
+        Loc.Current = before;
+        Check("the three languages round-trip through their codes", Loc.All.All(l => Loc.FromCode(Loc.Code(l.Lang)) == l.Lang)
+              && Loc.FromCode("xx") == UiLanguage.En);
         Check("a stack never counts as running", !saved.Running);
     }
 

@@ -414,7 +414,7 @@ internal sealed class DockWindow : Window
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, tr("No se pudo abrir «", "Could not open \"") + it.Name + tr("».", "\".") + "\n\n" + ex.Message, "Muelle",
+            MessageBox.Show(this, tr("No se pudo abrir «", "Could not open \"", "開けませんでした: \"") + it.Name + tr("».", "\".", "\"") + "\n\n" + ex.Message, "Muelle",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
@@ -475,9 +475,9 @@ internal sealed class DockWindow : Window
     {
         var dlg = new Microsoft.Win32.OpenFileDialog
         {
-            Title = tr("Agregar al dock", "Add to the dock"),
-            Filter = tr("Programas y accesos directos", "Programs and shortcuts") + "|*.exe;*.lnk;*.url;*.bat;*.cmd|"
-                   + tr("Todos los archivos", "All files") + "|*.*",
+            Title = tr("Agregar al dock", "Add to the dock", "ドックに追加"),
+            Filter = tr("Programas y accesos directos", "Programs and shortcuts", "プログラムとショートカット") + "|*.exe;*.lnk;*.url;*.bat;*.cmd|"
+                   + tr("Todos los archivos", "All files", "すべてのファイル") + "|*.*",
             Multiselect = true,
             DereferenceLinks = false,
             InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu),
@@ -511,7 +511,7 @@ internal sealed class DockWindow : Window
     {
         var menu = new ContextMenu { Placement = PlacementMode.MousePoint };
         if (stack.Children.Count == 0)
-            menu.Items.Add(new MenuItem { Header = tr("La pila está vacía", "The stack is empty"), IsEnabled = false });
+            menu.Items.Add(new MenuItem { Header = tr("La pila está vacía", "The stack is empty", "スタックは空です"), IsEnabled = false });
         foreach (var child in stack.Children)
         {
             var c = child;
@@ -526,7 +526,7 @@ internal sealed class DockWindow : Window
             menu.Items.Add(mi);
         }
         menu.Items.Add(new Separator());
-        menu.Items.Add(Cmd(tr("Editar pila…", "Edit stack…"), () => EditStack(stack)));
+        menu.Items.Add(Cmd(tr("Editar pila…", "Edit stack…", "スタックを編集…"), () => EditStack(stack)));
         return menu;
     }
 
@@ -561,86 +561,92 @@ internal sealed class DockWindow : Window
         menu.IsOpen = true;
     }
 
-    /// <summary>The right-click menu, for an icon (item) or for the dock (item null).</summary>
+    /// <summary>
+    /// The right-click menu. On an icon: its own actions first, then the dock (lock, settings, quit), and "End task"
+    /// last and apart when the app is running. On an empty part of the dock (item null): adding apps and stacks,
+    /// then the same dock lines. Everything else (style, language, appearance, updates, about) is in Settings.
+    /// </summary>
     public ContextMenu BuildMenu(DockItem item, int insertAt)
     {
         var menu = new ContextMenu { Placement = PlacementMode.MousePoint };
+        bool locked = Config.LockItems;
+
+        if (item != null)
+        {
+            menu.Items.Add(new MenuItem { Header = item.Name, IsEnabled = false, FontWeight = FontWeights.SemiBold });
+            menu.Items.Add(new Separator());
+        }
 
         if (item != null && item.IsStack)
         {
-            menu.Items.Add(new MenuItem { Header = item.Name, IsEnabled = false, FontWeight = FontWeights.SemiBold });
-            menu.Items.Add(Cmd(tr("Abrir la pila", "Open the stack"), () => ShowStack(item)));
-            menu.Items.Add(Cmd(tr("Editar pila…", "Edit stack…"), () => EditStack(item)));
-            menu.Items.Add(Cmd(tr("Quitar del dock", "Remove from dock"), () => RemoveItem(item)));
+            menu.Items.Add(Cmd(tr("Abrir la pila", "Open the stack", "スタックを開く"), () => ShowStack(item)));
+            menu.Items.Add(Cmd(tr("Editar pila…", "Edit stack…", "スタックを編集…"), () => EditStack(item)));
+            menu.Items.Add(Enabled(Cmd(tr("Liberar del dock", "Unpin from dock", "ドックから外す"), () => RemoveItem(item)), !locked));
             menu.Items.Add(new Separator());
         }
         else if (item != null)
         {
-            menu.Items.Add(new MenuItem { Header = item.Name, IsEnabled = false, FontWeight = FontWeights.SemiBold });
-            menu.Items.Add(Cmd(item.Running ? tr("Mostrar", "Show") : tr("Abrir", "Open"), () => ActivateItem(item, false)));
-            menu.Items.Add(Cmd(tr("Abrir otra ventana", "Open another window"), () => Launch(item, false)));
-            menu.Items.Add(Cmd(tr("Ejecutar como administrador", "Run as administrator"), () => Launch(item, true)));
-            menu.Items.Add(Cmd(tr("Abrir ubicación del archivo", "Open file location"), () => OpenLocation(item)));
-            if (item.Running && item.ExePath != null && HasKillableProcess(item))
-                menu.Items.Add(Cmd(tr("Finalizar tarea", "End task"), () => EndTask(item)));
-            if (item.Transient) menu.Items.Add(Cmd(tr("Mantener en el dock", "Keep in dock"), () => Manager.Pin(item)));
+            menu.Items.Add(Cmd(item.Running ? tr("Abrir otra ventana", "Open another window", "新しいウィンドウを開く") : tr("Abrir", "Open", "開く"), () => Launch(item, false)));
+            if (item.Transient)
+                menu.Items.Add(Enabled(Cmd(tr("Fijar al dock", "Pin to dock", "ドックに固定"), () => Manager.Pin(item)), !locked));
             else
             {
-                // A pinned icon can go into one of the stacks of this dock.
-                var stacks = Items.Where(i => i.IsStack).ToList();
-                if (stacks.Count > 0 && !Config.LockItems)
-                {
-                    var into = new MenuItem { Header = tr("Mover a la pila", "Move to stack") };
-                    foreach (var st in stacks) { var target = st; into.Items.Add(Cmd(target.Name, () => Manager.MoveIntoStack(Items, item, target))); }
-                    menu.Items.Add(into);
-                }
-                menu.Items.Add(Cmd(tr("Quitar del dock", "Remove from dock"), () => RemoveItem(item)));
+                menu.Items.Add(Enabled(Cmd(tr("Renombrar…", "Rename…", "名前の変更…"), () => RenameItem(item)), !locked));
+                menu.Items.Add(Enabled(Cmd(tr("Liberar del dock", "Unpin from dock", "ドックから外す"), () => RemoveItem(item)), !locked));
             }
+
+            // Less frequent actions, one level down.
+            var more = new MenuItem { Header = tr("Más", "More", "その他") };
+            more.Items.Add(Cmd(tr("Ejecutar como administrador", "Run as administrator", "管理者として実行"), () => Launch(item, true)));
+            more.Items.Add(Cmd(tr("Abrir ubicación del archivo", "Open file location", "ファイルの場所を開く"), () => OpenLocation(item)));
+            // A pinned icon can go into one of the stacks of this dock.
+            var stacks = Items.Where(i => i.IsStack).ToList();
+            if (!item.Transient && stacks.Count > 0 && !locked)
+            {
+                var into = new MenuItem { Header = tr("Mover a la pila", "Move to stack", "スタックへ移動") };
+                foreach (var st in stacks) { var target = st; into.Items.Add(Cmd(target.Name, () => Manager.MoveIntoStack(Items, item, target))); }
+                more.Items.Add(into);
+            }
+            menu.Items.Add(more);
+            menu.Items.Add(new Separator());
+        }
+        else
+        {
+            menu.Items.Add(Enabled(Cmd(tr("Agregar aplicación…", "Add application…", "アプリケーションを追加…"), () => AddWithDialog(insertAt)), !locked));
+            menu.Items.Add(Enabled(Cmd(tr("Nueva pila…", "New stack…", "新しいスタック…"), () => EditStack(null, insertAt)), !locked));
             menu.Items.Add(new Separator());
         }
 
-        menu.Items.Add(Cmd(tr("Agregar aplicación…", "Add application…"), () => AddWithDialog(insertAt)));
-        menu.Items.Add(Cmd(tr("Nueva pila…", "New stack…"), () => EditStack(null, insertAt)));
-        menu.Items.Add(new Separator());
-        menu.Items.Add(Cmd(Config.Style == DockStyle.Panel
-            ? tr("Cambiar a dock flotante (estilo Mac)", "Switch to floating dock (Mac style)")
-            : tr("Cambiar a panel fijo (estilo Ubuntu)", "Switch to fixed panel (Ubuntu style)"), () =>
-        {
-            Config.Style = Config.Style == DockStyle.Panel ? DockStyle.Dock : DockStyle.Panel;
-            Manager.Changed();
-        }));
-        var lockItem = Cmd(tr("Bloquear iconos", "Lock icons"), () => Manager.SetLocked(!Config.LockItems));
+        var lockItem = Cmd(tr("Bloquear dock", "Lock dock", "ドックをロック"), () => Manager.SetLocked(!Config.LockItems));
         lockItem.IsCheckable = true;
-        lockItem.IsChecked = Config.LockItems;
+        lockItem.IsChecked = locked;
         menu.Items.Add(lockItem);
-        // The language menu is always labeled in both languages, so it can be found from either one.
-        var language = new MenuItem { Header = "Idioma / Language" };
-        foreach (var (lang, label) in new[] { (UiLanguage.En, "English"), (UiLanguage.Es, "Español") })
+        menu.Items.Add(Cmd(tr("Configuración…", "Settings…", "設定…"), () => Manager.OpenSettings()));
+        menu.Items.Add(Cmd(tr("Salir de Muelle", "Quit Muelle", "Muelle を終了"), Manager.Exit));
+
+        // End task: only while the app is running, last and apart so it is not clicked by mistake.
+        if (item != null && !item.IsStack && item.Running && item.ExePath != null && HasKillableProcess(item))
         {
-            var mi = Cmd(label, () => Manager.SetLanguage(lang));
-            mi.IsCheckable = true;
-            mi.IsChecked = Loc.Current == lang;
-            language.Items.Add(mi);
+            menu.Items.Add(new Separator());
+            menu.Items.Add(Cmd(tr("Finalizar tarea", "End task", "タスクの終了"), () => EndTask(item)));
         }
-        menu.Items.Add(language);
-        var look = new MenuItem { Header = tr("Apariencia", "Appearance") };
-        foreach (var (key, label) in new[]
-        {
-            (Theme.Auto, tr("Como Windows", "As Windows")), (Theme.Light, tr("Claro", "Light")), (Theme.Dark, tr("Oscuro", "Dark")),
-        })
-        {
-            var mi = Cmd(label, () => Manager.SetTheme(key, Config.Accent));
-            mi.IsCheckable = true;
-            mi.IsChecked = Config.Appearance == key;
-            look.Items.Add(mi);
-        }
-        menu.Items.Add(look);
-        menu.Items.Add(Cmd(tr("Configuración…", "Settings…"), () => Manager.OpenSettings()));
-        menu.Items.Add(Cmd(tr("Buscar actualizaciones", "Check for updates"), async () => await Updates.CheckAsync(Manager, interactive: true)));
-        menu.Items.Add(Cmd(tr("Acerca de Muelle…", "About Muelle…"), () => Manager.OpenAbout()));
-        menu.Items.Add(new Separator());
-        menu.Items.Add(Cmd(tr("Salir de Muelle", "Quit Muelle"), Manager.Exit));
         return menu;
+    }
+
+    private static MenuItem Enabled(MenuItem mi, bool enabled)
+    {
+        mi.IsEnabled = enabled;
+        return mi;
+    }
+
+    /// <summary>Asks for a new name for a pinned icon; an empty name goes back to the automatic one.</summary>
+    private void RenameItem(DockItem item)
+    {
+        string name = RenameWindow.Ask(this, item.Name);
+        if (name == null) return;
+        item.Cfg.Name = name.Trim();
+        Manager.SaveItems(Items);
+        Manager.KickAll();
     }
 
     private static MenuItem Cmd(string header, Action action)

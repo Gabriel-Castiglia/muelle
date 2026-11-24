@@ -30,7 +30,7 @@
     <SolidColorBrush x:Key="Mu.AccentSoft" Color="#2E1F5FD1" />
     <SolidColorBrush x:Key="Mu.OnAccent" Color="#FFFFFF" />
 
-    <FontFamily x:Key="Mu.Font">Segoe UI Variable Text, Segoe UI</FontFamily>
+    <FontFamily x:Key="Mu.Font">Segoe UI Variable Text, Segoe UI, Yu Gothic UI, Meiryo UI</FontFamily>
     <FontFamily x:Key="Mu.Icons">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
 
     <!-- Cards of the settings window -->

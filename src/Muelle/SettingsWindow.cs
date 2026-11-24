@@ -71,7 +71,7 @@ internal sealed class SettingsWindow : Window
     public void Rebuild()
     {
         double offset = scroller?.VerticalOffset ?? 0;
-        Title = tr("Configuración de Muelle", "Muelle Settings");
+        Title = tr("Configuración de Muelle", "Muelle Settings", "Muelle の設定");
 
         var left = new StackPanel { Margin = new Thickness(0, 0, 8, 0) };
         left.Children.Add(BuildStyle());
@@ -107,13 +107,13 @@ internal sealed class SettingsWindow : Window
     // ---------------- Sections ----------------
     private UIElement BuildStyle()
     {
-        var (box, card) = Section(tr("Estilo", "Style"));
-        box.Children.Add(Radio("style", tr("Dock flotante (estilo Mac)", "Floating dock (Mac style)"),
-            tr("Iconos centrados que se amplían al pasar el puntero.", "Centered icons that grow under the pointer."),
+        var (box, card) = Section(tr("Estilo", "Style", "スタイル"));
+        box.Children.Add(Radio("style", tr("Dock flotante (estilo Mac)", "Floating dock (Mac style)", "フローティングドック (Mac 風)"),
+            tr("Iconos centrados que se amplían al pasar el puntero.", "Centered icons that grow under the pointer.", "中央に並んだアイコンがポインターの下で拡大します。"),
             Config.Style == DockStyle.Dock, () => { Config.Style = DockStyle.Dock; Apply(); }));
-        box.Children.Add(Radio("style", tr("Panel fijo (estilo Ubuntu)", "Fixed panel (Ubuntu style)"),
+        box.Children.Add(Radio("style", tr("Panel fijo (estilo Ubuntu)", "Fixed panel (Ubuntu style)", "固定パネル (Ubuntu 風)"),
             tr("Barra continua de borde a borde, con los iconos alineados al inicio.",
-               "Continuous edge-to-edge bar, with the icons aligned to the start."),
+               "Continuous edge-to-edge bar, with the icons aligned to the start.", "端から端まで続くバーで、アイコンは先頭に揃えて並びます。"),
             Config.Style == DockStyle.Panel, () => { Config.Style = DockStyle.Panel; Apply(); }));
 
         var opacity = new Slider { Minimum = 0, Maximum = 100, TickFrequency = 5, IsSnapToTickEnabled = true, Value = Config.PanelOpacity };
@@ -126,37 +126,37 @@ internal sealed class SettingsWindow : Window
             manager.KickAll();
         };
         panelRow = new StackPanel { Margin = new Thickness(22, 4, 0, 0) };
-        panelRow.Children.Add(Row(tr("Opacidad del panel:", "Panel opacity:"), opacity, opacityValue));
+        panelRow.Children.Add(Row(tr("Opacidad del panel:", "Panel opacity:", "パネルの不透明度:"), opacity, opacityValue));
         box.Children.Add(panelRow);
         return card;
     }
 
     private UIElement BuildPosition()
     {
-        var (box, card) = Section(tr("Ubicación", "Location"));
+        var (box, card) = Section(tr("Ubicación", "Location", "位置"));
 
         var side = new ComboBox();
         var sides = new[]
         {
-            (tr("Izquierda", "Left"), DockEdge.Left), (tr("Derecha", "Right"), DockEdge.Right),
-            (tr("Arriba", "Top"), DockEdge.Top), (tr("Abajo", "Bottom"), DockEdge.Bottom),
+            (tr("Izquierda", "Left", "左"), DockEdge.Left), (tr("Derecha", "Right", "右"), DockEdge.Right),
+            (tr("Arriba", "Top", "上"), DockEdge.Top), (tr("Abajo", "Bottom", "下"), DockEdge.Bottom),
         };
         foreach (var (name, _) in sides) side.Items.Add(name);
         side.SelectedIndex = Array.FindIndex(sides, x => x.Item2 == Config.Edge);
         side.SelectionChanged += (s, e) => { if (side.SelectedIndex >= 0) { Config.Edge = sides[side.SelectedIndex].Item2; Apply(); } };
-        var sideRow = Row(tr("Borde de la pantalla:", "Screen edge:"), side, null);
+        var sideRow = Row(tr("Borde de la pantalla:", "Screen edge:", "画面の端:"), side, null);
         sideRow.Margin = new Thickness(0, 2, 0, 8);
         box.Children.Add(sideRow);
 
-        box.Children.Add(new TextBlock { Text = tr("Mostrar el dock en:", "Show the dock on:"), Margin = new Thickness(0, 0, 0, 2) });
+        box.Children.Add(new TextBlock { Text = tr("Mostrar el dock en:", "Show the dock on:", "ドックを表示する画面:"), Margin = new Thickness(0, 0, 0, 2) });
         var monitors = Monitors.Listed();
         bool specific = !Config.AllMonitors && !string.IsNullOrEmpty(Config.Monitor);
         monitorCombo = new ComboBox { Margin = new Thickness(22, 4, 0, 0), HorizontalAlignment = HorizontalAlignment.Stretch };
-        box.Children.Add(Radio("mon", tr("Solo en la pantalla principal", "The primary screen only"), null, !Config.AllMonitors && !specific,
+        box.Children.Add(Radio("mon", tr("Solo en la pantalla principal", "The primary screen only", "メイン画面のみ"), null, !Config.AllMonitors && !specific,
             () => { Config.AllMonitors = false; Config.Monitor = ""; Apply(); }));
-        box.Children.Add(Radio("mon", tr("En todas las pantallas (una copia en cada una)", "Every screen (one copy on each)"), null, Config.AllMonitors,
+        box.Children.Add(Radio("mon", tr("En todas las pantallas (una copia en cada una)", "Every screen (one copy on each)", "すべての画面 (各画面に 1 つずつ)"), null, Config.AllMonitors,
             () => { Config.AllMonitors = true; Apply(); }));
-        box.Children.Add(Radio("mon", tr("En una pantalla concreta:", "A specific screen:"), null, specific, () =>
+        box.Children.Add(Radio("mon", tr("En una pantalla concreta:", "A specific screen:", "特定の画面:"), null, specific, () =>
         {
             Config.AllMonitors = false;
             if (monitors.Count == 0) return;
@@ -167,8 +167,8 @@ internal sealed class SettingsWindow : Window
         for (int i = 0; i < monitors.Count; i++)
         {
             var m = monitors[i];
-            monitorCombo.Items.Add($"{tr("Pantalla", "Screen")} {i + 1}  ·  {m.Bounds.Width}×{m.Bounds.Height}  ·  {Math.Round(m.Scale * 100)} %"
-                                   + (m.Primary ? tr("  (principal)", "  (primary)") : ""));
+            monitorCombo.Items.Add($"{tr("Pantalla", "Screen", "画面")} {i + 1}  ·  {m.Bounds.Width}×{m.Bounds.Height}  ·  {Math.Round(m.Scale * 100)} %"
+                                   + (m.Primary ? tr("  (principal)", "  (primary)", " (メイン)") : ""));
             if (string.Equals(m.Device, Config.Monitor, StringComparison.OrdinalIgnoreCase)) monitorCombo.SelectedIndex = i;
         }
         // Without a specific screen chosen, the list shows the primary one (only a display: the handler below
@@ -182,7 +182,7 @@ internal sealed class SettingsWindow : Window
             Apply();
         };
         box.Children.Add(monitorCombo);
-        box.Children.Add(Check(tr("Cada pantalla con sus propios iconos", "Each screen has its own icons"), Config.PerMonitor, v =>
+        box.Children.Add(Check(tr("Cada pantalla con sus propios iconos", "Each screen has its own icons", "画面ごとに別のアイコン"), Config.PerMonitor, v =>
         {
             Config.PerMonitor = v;
             editing = 0;
@@ -190,14 +190,14 @@ internal sealed class SettingsWindow : Window
             Dispatcher.BeginInvoke(new Action(Rebuild));
         }));
         box.Children.Add(Hint(tr("Una pantalla nueva empieza con una copia de los iconos comunes. Si se desconecta, sus iconos se guardan y vuelven con ella.",
-                                 "A new screen starts with a copy of the common icons. If it is disconnected, its icons are kept and come back with it."),
+                                 "A new screen starts with a copy of the common icons. If it is disconnected, its icons are kept and come back with it.", "新しい画面は共通アイコンのコピーで始まります。画面を外してもアイコンは保持され、再接続すると戻ります。"),
                               new Thickness(46, 0, 0, 0)));
         return card;
     }
 
     private UIElement BuildSize()
     {
-        var (box, card) = Section(tr("Iconos", "Icons"));
+        var (box, card) = Section(tr("Iconos", "Icons", "アイコン"));
 
         var size = new Slider
         {
@@ -215,7 +215,7 @@ internal sealed class SettingsWindow : Window
             UpdateZoomLabel();
             Apply();
         };
-        box.Children.Add(Row(tr("Tamaño:", "Size:"), size, sizeValue));
+        box.Children.Add(Row(tr("Tamaño:", "Size:", "サイズ:"), size, sizeValue));
 
         zoomSlider = new Slider { Minimum = 0, Maximum = 100, TickFrequency = 10, IsSnapToTickEnabled = true };
         zoomSlider.Value = Math.Round((Config.ZoomSize / (double)Config.IconSize - 1) * 100 / 10) * 10;
@@ -227,15 +227,15 @@ internal sealed class SettingsWindow : Window
             Apply();
         };
         zoomRow = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
-        zoomRow.Children.Add(Row(tr("Ampliación al pasar:", "Magnification:"), zoomSlider, zoomValue));
+        zoomRow.Children.Add(Row(tr("Ampliación al pasar:", "Magnification:", "拡大:"), zoomSlider, zoomValue));
         box.Children.Add(zoomRow);
         UpdateZoomLabel();
 
         backdropGroup = new StackPanel { Margin = new Thickness(0, 8, 0, 0) };
-        backdropGroup.Children.Add(new TextBlock { Text = tr("Fondo del dock flotante:", "Floating dock background:") });
-        backdropGroup.Children.Add(Radio("bg", tr("Vidrio sutil", "Subtle glass"), null, Config.Backdrop == Backdrop.Glass,
+        backdropGroup.Children.Add(new TextBlock { Text = tr("Fondo del dock flotante:", "Floating dock background:", "フローティングドックの背景:") });
+        backdropGroup.Children.Add(Radio("bg", tr("Vidrio sutil", "Subtle glass", "控えめなガラス"), null, Config.Backdrop == Backdrop.Glass,
             () => { Config.Backdrop = Backdrop.Glass; Apply(); }));
-        backdropGroup.Children.Add(Radio("bg", tr("Transparente", "Transparent"), null, Config.Backdrop == Backdrop.Clear,
+        backdropGroup.Children.Add(Radio("bg", tr("Transparente", "Transparent", "透明"), null, Config.Backdrop == Backdrop.Clear,
             () => { Config.Backdrop = Backdrop.Clear; Apply(); }));
         box.Children.Add(backdropGroup);
         return card;
@@ -243,30 +243,30 @@ internal sealed class SettingsWindow : Window
 
     private UIElement BuildBehavior()
     {
-        var (box, card) = Section(tr("Comportamiento", "Behavior"));
+        var (box, card) = Section(tr("Comportamiento", "Behavior", "動作"));
         box.Children.Add(Check(tr("Reservar su franja de pantalla (las ventanas maximizadas no lo tapan)",
-                                  "Reserve its screen strip (maximized windows do not cover it)"), Config.ReserveSpace,
+                                  "Reserve its screen strip (maximized windows do not cover it)", "画面の帯を確保する (最大化したウィンドウで隠れません)"), Config.ReserveSpace,
             v => { Config.ReserveSpace = v; Apply(); }));
         box.Children.Add(Hint(tr("Al reservar la franja, Windows reacomoda los iconos del escritorio que quedaban debajo y puede moverlos a otro monitor. Si eso molesta, desmarcar esta opción.",
-                                 "When the strip is reserved, Windows rearranges the desktop icons that were underneath and may move them to another monitor. If that is a problem, turn this option off."),
+                                 "When the strip is reserved, Windows rearranges the desktop icons that were underneath and may move them to another monitor. If that is a problem, turn this option off.", "帯を確保すると、Windows はその下にあったデスクトップアイコンを並べ替え、別のモニターへ移すことがあります。問題がある場合はこのオプションをオフにしてください。"),
                               new Thickness(46, 0, 0, 6)));
         box.Children.Add(Check(tr("Ocultar automáticamente (aparece al llevar el puntero al borde)",
-                                  "Hide automatically (shows up when the pointer reaches the edge)"), Config.AutoHide,
+                                  "Hide automatically (shows up when the pointer reaches the edge)", "自動的に隠す (ポインターが端に来ると表示)"), Config.AutoHide,
             v => { Config.AutoHide = v; Apply(); }));
         box.Children.Add(Check(tr("Mostrar también las apps abiertas que no están fijadas (desaparecen al cerrarse)",
-                                  "Also show open apps that are not pinned (they leave when closed)"), Config.ShowRunningApps,
+                                  "Also show open apps that are not pinned (they leave when closed)", "固定していない起動中のアプリも表示する (閉じると消えます)"), Config.ShowRunningApps,
             v => { Config.ShowRunningApps = v; Apply(); manager.RefreshRunning(); }));
         box.Children.Add(Check(tr("Bloquear los iconos (no se pueden agregar, quitar ni reordenar arrastrando)",
-                                  "Lock the icons (they cannot be added, removed or reordered by dragging)"), Config.LockItems,
+                                  "Lock the icons (they cannot be added, removed or reordered by dragging)", "アイコンをロックする (ドラッグによる追加・削除・並べ替えができなくなります)"), Config.LockItems,
             v => manager.SetLocked(v)));
-        box.Children.Add(Check(tr("Iniciar Muelle al encender Windows", "Start Muelle when Windows starts"), Config.StartWithWindows, v =>
+        box.Children.Add(Check(tr("Iniciar Muelle al encender Windows", "Start Muelle when Windows starts", "Windows の起動時に Muelle を開始する"), Config.StartWithWindows, v =>
         {
             Config.StartWithWindows = v;
             DockConfig.SetStartup(v);
             manager.SaveConfig();
         }));
         box.Children.Add(Check(tr("Buscar versiones nuevas una vez al día (se consulta GitHub; se instalan solo si se acepta)",
-                                  "Look for new versions once a day (GitHub is asked; they install only if accepted)"), Config.CheckUpdates, v =>
+                                  "Look for new versions once a day (GitHub is asked; they install only if accepted)", "1 日 1 回新しいバージョンを確認する (GitHub に問い合わせ、承認した場合のみインストール)"), Config.CheckUpdates, v =>
         {
             Config.CheckUpdates = v;
             manager.SaveConfig();
@@ -276,13 +276,13 @@ internal sealed class SettingsWindow : Window
 
     private UIElement BuildAppearance()
     {
-        var (box, card) = Section(tr("Apariencia", "Appearance"));
+        var (box, card) = Section(tr("Apariencia", "Appearance", "外観"));
         var segHost = new Border { HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 12) };
         segHost.SetResourceReference(StyleProperty, "Mu.SegmentHost");
         var segs = new StackPanel { Orientation = Orientation.Horizontal };
         foreach (var (key, label) in new[]
         {
-            (Theme.Auto, tr("Como Windows", "As Windows")), (Theme.Light, tr("Claro", "Light")), (Theme.Dark, tr("Oscuro", "Dark")),
+            (Theme.Auto, tr("Como Windows", "As Windows", "Windows に合わせる")), (Theme.Light, tr("Claro", "Light", "ライト")), (Theme.Dark, tr("Oscuro", "Dark", "ダーク")),
         })
         {
             var rb = new RadioButton { Content = label, GroupName = "appearance", IsChecked = Config.Appearance == key };
@@ -293,7 +293,7 @@ internal sealed class SettingsWindow : Window
         segHost.Child = segs;
         box.Children.Add(segHost);
 
-        box.Children.Add(new TextBlock { Text = tr("Color:", "Colour:"), Margin = new Thickness(0, 0, 0, 4) });
+        box.Children.Add(new TextBlock { Text = tr("Color:", "Colour:", "色:"), Margin = new Thickness(0, 0, 0, 4) });
         var tiles = new UniformGrid { Columns = 6, Margin = new Thickness(-3, 0, -3, 4) };
         var marks = new List<(string Key, Border Tile)>();
         void Mark()
@@ -325,34 +325,34 @@ internal sealed class SettingsWindow : Window
         Mark();
         box.Children.Add(tiles);
         box.Children.Add(Hint(tr("El color se usa en el ícono de las ventanas de Muelle, en el punto de las apps abiertas y en los controles.",
-                                 "The colour is used for the icon of Muelle's windows, the dot of open apps and the controls."),
+                                 "The colour is used for the icon of Muelle's windows, the dot of open apps and the controls.", "この色は Muelle のウィンドウのアイコン、起動中のアプリの点、コントロールに使われます。"),
                               new Thickness(0, 2, 0, 0)));
         return card;
     }
 
     private UIElement BuildLanguage()
     {
-        // The title carries both languages, so the section can be found from either one.
-        var (box, card) = Section("Idioma / Language");
+        // The title carries every language, so the section can be found from any of them.
+        var (box, card) = Section("Language / Idioma / 言語");
         var combo = new ComboBox();
-        combo.Items.Add("English");
-        combo.Items.Add("Español");
-        combo.SelectedIndex = Loc.Current == UiLanguage.Es ? 1 : 0;
+        foreach (var (_, name) in Loc.All) combo.Items.Add(name);
+        combo.SelectedIndex = Array.FindIndex(Loc.All, l => l.Lang == Loc.Current);
         combo.SelectionChanged += (s, e) =>
         {
-            var chosen = combo.SelectedIndex == 1 ? UiLanguage.Es : UiLanguage.En;
+            if (combo.SelectedIndex < 0) return;
+            var chosen = Loc.All[combo.SelectedIndex].Lang;
             // Rebuilding happens through Loc.Changed, after this handler returns.
             if (chosen != Loc.Current) Dispatcher.BeginInvoke(new Action(() => manager.SetLanguage(chosen)));
         };
-        box.Children.Add(Row(tr("Idioma de la interfaz:", "Interface language:"), combo, null));
+        box.Children.Add(Row(tr("Idioma de la interfaz:", "Interface language:", "表示言語:"), combo, null));
         return card;
     }
 
     private UIElement BuildApps()
     {
-        var (box, card) = Section(tr("Aplicaciones del dock", "Dock applications"));
+        var (box, card) = Section(tr("Aplicaciones del dock", "Dock applications", "ドックのアプリケーション"));
         box.Children.Add(Hint(tr("También se pueden agregar arrastrando un acceso directo o un .exe sobre el dock, y reordenar o quitar arrastrando los iconos.",
-                                 "Apps can also be added by dropping a shortcut or an .exe on the dock, and reordered or removed by dragging the icons."),
+                                 "Apps can also be added by dropping a shortcut or an .exe on the dock, and reordered or removed by dragging the icons.", "ショートカットや .exe をドックにドロップしてアプリを追加することもでき、アイコンをドラッグして並べ替えや削除ができます。"),
                               new Thickness(0)));
         // With its own icons per screen: which screen's icons are listed.
         var lists = manager.EditableLists();
@@ -362,12 +362,12 @@ internal sealed class SettingsWindow : Window
             for (int i = 0; i < lists.Count; i++)
             {
                 var m = lists[i].Monitor;
-                screen.Items.Add($"{tr("Pantalla", "Screen")} {i + 1}  ·  {m.Bounds.Width}×{m.Bounds.Height}" + (m.Primary ? tr("  (principal)", "  (primary)") : ""));
+                screen.Items.Add($"{tr("Pantalla", "Screen", "画面")} {i + 1}  ·  {m.Bounds.Width}×{m.Bounds.Height}" + (m.Primary ? tr("  (principal)", "  (primary)", " (メイン)") : ""));
             }
             editing = Math.Clamp(editing, 0, lists.Count - 1);
             screen.SelectedIndex = editing;
             screen.SelectionChanged += (s, e) => { if (screen.SelectedIndex >= 0) { editing = screen.SelectedIndex; RefreshApps(0); } };
-            var screenRow = Row(tr("Iconos de:", "Icons of:"), screen, null);
+            var screenRow = Row(tr("Iconos de:", "Icons of:", "アイコンの対象:"), screen, null);
             screenRow.Margin = new Thickness(0, 8, 0, 0);
             box.Children.Add(screenRow);
         }
@@ -376,17 +376,17 @@ internal sealed class SettingsWindow : Window
         box.Children.Add(appList);
 
         var buttons = new WrapPanel();
-        buttons.Children.Add(Button(tr("Agregar…", "Add…"), () => { manager.AddWithDialog(CurrentList); RefreshApps(); }));
-        buttons.Children.Add(Button(tr("Nueva pila…", "New stack…"), () => StackWindow.Edit(manager, CurrentList, null, DockManager.PinnedCountOf(CurrentList))));
-        buttons.Children.Add(Button(tr("Editar pila…", "Edit stack…"), () => WithSelected((it, i) => { if (it.IsStack) StackWindow.Edit(manager, CurrentList, it, i); })));
-        buttons.Children.Add(Button(tr("Quitar", "Remove"), () => WithSelected((it, i) => { CurrentList.RemoveAt(i); ItemsChanged(i - 1); })));
-        buttons.Children.Add(Button(tr("Subir", "Move up"), () => WithSelected((it, i) =>
+        buttons.Children.Add(Button(tr("Agregar…", "Add…", "追加…"), () => { manager.AddWithDialog(CurrentList); RefreshApps(); }));
+        buttons.Children.Add(Button(tr("Nueva pila…", "New stack…", "新しいスタック…"), () => StackWindow.Edit(manager, CurrentList, null, DockManager.PinnedCountOf(CurrentList))));
+        buttons.Children.Add(Button(tr("Editar pila…", "Edit stack…", "スタックを編集…"), () => WithSelected((it, i) => { if (it.IsStack) StackWindow.Edit(manager, CurrentList, it, i); })));
+        buttons.Children.Add(Button(tr("Quitar", "Remove", "削除"), () => WithSelected((it, i) => { CurrentList.RemoveAt(i); ItemsChanged(i - 1); })));
+        buttons.Children.Add(Button(tr("Subir", "Move up", "上へ"), () => WithSelected((it, i) =>
         {
             if (i == 0) return;
             var l = CurrentList;
             l.RemoveAt(i); l.Insert(i - 1, it); ItemsChanged(i - 1);
         })));
-        buttons.Children.Add(Button(tr("Bajar", "Move down"), () => WithSelected((it, i) =>
+        buttons.Children.Add(Button(tr("Bajar", "Move down", "下へ"), () => WithSelected((it, i) =>
         {
             var l = CurrentList;
             if (i >= DockManager.PinnedCountOf(l) - 1) return;
@@ -399,13 +399,13 @@ internal sealed class SettingsWindow : Window
     private UIElement BuildFooter()
     {
         var row = new DockPanel { Margin = new Thickness(0, 10, 8, 0), LastChildFill = false };
-        var folder = Button(tr("Abrir carpeta de configuración", "Open settings folder"), () =>
+        var folder = Button(tr("Abrir carpeta de configuración", "Open settings folder", "設定フォルダーを開く"), () =>
         {
             manager.FlushConfig();
             try { Process.Start("explorer.exe", "/select,\"" + DockConfig.FilePath + "\""); } catch { }
         });
-        var aboutBtn = Button(tr("Acerca de…", "About…"), manager.OpenAbout);
-        var close = Button(tr("Cerrar", "Close"), Close);
+        var aboutBtn = Button(tr("Acerca de…", "About…", "バージョン情報…"), manager.OpenAbout);
+        var close = Button(tr("Cerrar", "Close", "閉じる"), Close);
         close.IsDefault = true;
         close.IsCancel = true;
         close.Margin = new Thickness(0);
@@ -438,8 +438,8 @@ internal sealed class SettingsWindow : Window
     private void UpdateZoomLabel()
     {
         zoomValue.Text = Config.ZoomSize <= Config.IconSize
-            ? tr("Sin ampliación", "None")
-            : tr("hasta ", "up to ") + Config.ZoomSize + " px";
+            ? tr("Sin ampliación", "None", "なし")
+            : tr("hasta ", "up to ", "最大 ") + Config.ZoomSize + " px";
     }
 
     private void RefreshApps(int select = -1)
@@ -447,7 +447,7 @@ internal sealed class SettingsWindow : Window
         int keep = select >= 0 ? select : appList.SelectedIndex;
         appList.Items.Clear();
         foreach (var it in CurrentList.Where(i => !i.Transient)) // pinned ones only
-            appList.Items.Add(it.IsStack ? $"{it.Name}   ·   {tr("pila", "stack")} ({it.Children.Count})" : it.Name);
+            appList.Items.Add(it.IsStack ? $"{it.Name}   ·   {tr("pila", "stack", "スタック")} ({it.Children.Count})" : it.Name);
         if (appList.Items.Count > 0) appList.SelectedIndex = Math.Clamp(keep, 0, appList.Items.Count - 1);
     }
 

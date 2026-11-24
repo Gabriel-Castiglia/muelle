@@ -2,6 +2,31 @@
 
 All notable changes to Muelle. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 2.4.0 - 2026-11-24
+
+### Added
+
+- Japanese. The interface, the setup window and the names of the colours and of the default apps are in English,
+  Spanish and Japanese, listed in that order in Settings and in the setup window.
+- "Rename…" in the menu of a pinned icon. An empty name goes back to the program's own name.
+
+### Changed
+
+- The right-click menu of an icon is short: Open another window (or Open, when the app is closed), Rename…, Pin
+  to dock or Unpin from dock, and More (Run as administrator, Open file location, Move to stack); then Lock dock,
+  Settings… and Quit Muelle. End task comes last and apart, only while the app is running. Right-clicking an
+  empty part of the dock offers Add application…, New stack…, Lock dock, Settings… and Quit Muelle. The style,
+  language, appearance, updates and About are in Settings only.
+- "Lock icons" is now "Lock dock", and it also turns off pinning, unpinning, renaming and adding from the menu.
+- The setup window starts in English, unless Muelle is already installed in another language; before, it took
+  the language of Windows when that was Spanish.
+
+### Fixed
+
+- An icon follows more changes without restarting the dock: Store apps that update themselves (Teams,
+  Terminal…), a shortcut whose icon is changed in its properties, and an icon chosen in the settings whose file
+  changes. Before, only a change of the program file or of its theme icon was noticed.
+
 ## 2.3.2 - 2026-11-24
 
 ### Fixed

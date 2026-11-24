@@ -15,7 +15,7 @@ Manual en PDF: [`docs/Muelle-manual-es.pdf`](docs/Muelle-manual-es.pdf)
 
 Muelle es un dock de aplicaciones para Windows 10 y 11, escrito en C# con .NET 10 y WPF. Puede ser un
 dock flotante que amplía los iconos al pasar el puntero, al estilo de macOS, o un panel fijo de borde a
-borde, al estilo de Ubuntu. La interfaz está en inglés y en castellano: arranca en el idioma elegido al
+borde, al estilo de Ubuntu. La interfaz está en inglés, castellano y japonés: arranca en el idioma elegido al
 instalar (en inglés si corre sin instalación) y se cambia cuando se quiera. El nombre es la palabra
 castellana para el lugar donde amarran los barcos, que en inglés se dice «dock». Puede ser claro, oscuro o
 seguir a Windows, en uno de doce colores. Varios accesos pueden compartir un icono como pila, cada pantalla
@@ -35,15 +35,15 @@ Hay tres formas de tener Muelle, y `scripts\build.ps1` deja las tres en la carpe
 
 | Archivo | Qué es |
 |---|---|
-| `muelle-setup.exe` | El instalador, en inglés o en castellano. Es la forma habitual. |
+| `muelle-setup.exe` | El instalador, en inglés, castellano o japonés. Es la forma habitual. |
 | `muelle.msi` | La misma instalación como paquete de Windows Installer, para instalar sin ventanas: `msiexec /i muelle.msi /qn`. |
 | `Muelle.exe` | El programa solo; anda sin instalar, desde cualquier carpeta. |
 
 Con el archivo `SHA256SUMS.txt` de cada versión se puede comprobar una descarga antes, en PowerShell:
 `Get-FileHash muelle-setup.exe`.
 
-El instalador abre una ventana con un menú de idioma arriba a la derecha, y cada página cambia de idioma
-en el acto. Instala Muelle para todos los usuarios en `C:\Program Files\Muelle`, lo que pide permisos de
+El instalador abre una ventana con un menú de idioma arriba a la derecha (primero inglés, después
+castellano y japonés), y cada página cambia de idioma en el acto. Instala Muelle para todos los usuarios en `C:\Program Files\Muelle`, lo que pide permisos de
 administrador (Windows los pide al empezar), y lo agrega al menú Inicio. El idioma elegido en esa
 ventana es el que usa el dock la primera vez que arranca.
 
@@ -79,27 +79,30 @@ Para desinstalar sin ventanas: `muelle-setup.exe /uninstall /quiet`.
   ventanas, cada clic trae la siguiente. Un clic sobre la única ventana que ya está al frente la
   minimiza. Mayúsculas+clic o el botón del medio abren una ventana nueva.
 - El icono rebota mientras la aplicación arranca, y un punto debajo marca las aplicaciones abiertas.
-- Cada icono sigue a su aplicación: cuando se actualiza, o cuando cambia el color de su propio icono (como hace
-  Vigía con el color del tema), el dock muestra el nuevo en menos de 15 segundos, sin reiniciarse. Para un
+- Cada icono sigue a su aplicación: cuando se actualiza (también las apps de la Tienda), cuando cambia el color
+  de su propio icono (como hace Vigía con el color del tema), o cuando cambia su acceso directo o el archivo del
+  icono elegido, el dock muestra el nuevo en menos de 15 segundos, sin reiniciarse. Para un
   programa, el dock toma el icono que nombran los accesos directos del propio programa cuando ese archivo está
   en la carpeta del programa; un icono elegido a mano para un acceso, de cualquier otro lado, no se toca.
-- Las aplicaciones abiertas que no están en el dock aparecen al final y se van al cerrarse. «Mantener en
-  el dock» en su menú, o arrastrarlas entre las demás, las deja fijas.
+- Las aplicaciones abiertas que no están en el dock aparecen al final y se van al cerrarse. «Fijar al
+  dock» en su menú, o arrastrarlas entre las demás, las deja fijas.
 - Las aplicaciones se agregan soltando un acceso directo o un `.exe` sobre el dock, con «Agregar
   aplicación…» en el menú del dock o desde Configuración. También se pueden agregar apps de la Tienda
   (Teams, Terminal…) y objetos del sistema como el Panel de control.
 - Los iconos se reordenan arrastrándolos a lo largo del dock y se quitan arrastrándolos afuera.
-  «Bloquear iconos» impide las dos cosas, para evitar cambios por accidente.
+  «Bloquear dock» impide las dos cosas, y también fijar, liberar y renombrar desde el menú, para evitar
+  cambios por accidente.
 - Una pila es un icono que guarda varios accesos: un clic los despliega al lado. Ver [Pilas](#pilas).
 - Cuando los iconos no entran en una pantalla, se achican solo en esa pantalla.
 - Con una aplicación a pantalla completa (un video, un juego) el dock pasa por detrás.
 
-El clic derecho sobre un icono ofrece Mostrar (o Abrir), Abrir otra ventana, Ejecutar como
-administrador, Abrir ubicación del archivo, Finalizar tarea (en las aplicaciones con procesos propios) y
-Mover a la pila (si el dock tiene una pila), y Mantener en el dock o Quitar del dock. El clic derecho
-sobre el dock ofrece Agregar aplicación…, Nueva pila…, el cambio entre dock flotante y panel fijo,
-Bloquear iconos, los menús de idioma y de apariencia, Configuración…, Buscar actualizaciones, Acerca de
-Muelle… y Salir de Muelle.
+El clic derecho sobre un icono ofrece un menú corto: Abrir otra ventana (o Abrir, si la aplicación está
+cerrada), Renombrar…, Fijar al dock o Liberar del dock, y Más (Ejecutar como administrador, Abrir
+ubicación del archivo, Mover a la pila); después Bloquear dock, Configuración… y Salir de Muelle.
+Finalizar tarea va al final y aparte, solo mientras la aplicación está abierta. El clic derecho en una
+parte vacía del dock ofrece Agregar aplicación…, Nueva pila…, Bloquear dock, Configuración… y Salir de
+Muelle. Todo lo demás (estilo, idioma, apariencia, actualizaciones, Acerca de) está en Configuración. Si
+se renombra con el nombre vacío, vuelve al nombre del programa.
 
 ## Pilas
 
@@ -144,7 +147,7 @@ Clic derecho sobre el dock → Configuración…. Cada cambio se aplica en el mo
 | Comportamiento | Reservar la franja de pantalla, ocultar automáticamente, mostrar las apps abiertas que no están fijadas, bloquear los iconos, iniciar con Windows, buscar versiones nuevas. |
 | Apariencia | Como Windows, claro u oscuro; uno de doce colores. |
 | Iconos | Tamaño (de 24 a 96 px), ampliación al pasar el puntero (hasta el doble), fondo del dock flotante. |
-| Idioma | Inglés o castellano. |
+| Idioma | Inglés, castellano o japonés. |
 | Aplicaciones del dock | La lista de aplicaciones fijas y pilas, con Agregar, Nueva pila, Editar pila (o doble clic), Quitar, Subir y Bajar; con iconos propios por pantalla, la pantalla cuyos iconos se listan. |
 
 ## Apariencia
@@ -189,9 +192,9 @@ Configuración → Comportamiento.
 
 ## Idioma
 
-La interfaz está en inglés y en castellano. El idioma se cambia desde el menú del dock (Idioma /
-Language, rotulado en los dos idiomas para encontrarlo desde cualquiera) o en Configuración, y queda
-guardado. Los nombres de las aplicaciones que Muelle agrega en su primer arranque (Explorador de
+La interfaz está en inglés, castellano y japonés. El idioma se cambia en Configuración (Language /
+Idioma / 言語, rotulado en los tres idiomas para encontrarlo desde cualquiera), y queda guardado. La
+ventana del instalador arranca en inglés, salvo que Muelle ya esté instalado en otro idioma. Los nombres de las aplicaciones que Muelle agrega en su primer arranque (Explorador de
 archivos, Bloc de notas, Calculadora…) siguen el idioma de la interfaz.
 
 ## Archivos
@@ -242,7 +245,7 @@ con numpy, opencv-python y Pillow).
 |---|---|
 | `src/Muelle` | El programa. |
 | `installer/Msi` | El paquete MSI (WiX). |
-| `installer/SetupUI` | La ventana del instalador, en inglés y en castellano (.NET Framework 4.7.2, WPF). |
+| `installer/SetupUI` | La ventana del instalador, en inglés, castellano y japonés (.NET Framework 4.7.2, WPF). |
 | `installer/Setup` | El instalador que lleva esa ventana y el MSI (bundle de WiX). |
 | `scripts` | Compilación, imágenes, icono y manuales. |
 | `assets` | El grabado del que sale el ícono. |

@@ -38,7 +38,7 @@
     <Property Id="ARPNOMODIFY" Value="1" />
     <Property Id="ARPCOMMENTS" Value="A dock for Windows. License: GPL-2.0-only." />
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/Gabriel-Castiglia/muelle" />
-    <!-- Interface language chosen in the setup window ("en" or "es"); the dock uses it on its first start. -->
+    <!-- Interface language chosen in the setup window ("en", "es" or "ja"); the dock uses it on its first start. -->
     <Property Id="MUELLELANGUAGE" Value="en" />
 
     <!-- Close the running dock before its files are replaced or removed. -->

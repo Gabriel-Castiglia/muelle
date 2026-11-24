@@ -13,11 +13,13 @@
 
 namespace Muelle;
 
-public enum UiLanguage { En, Es }
+/// <summary>Interface languages, in the order the language menus list them.</summary>
+public enum UiLanguage { En, Es, Ja }
 
 /// <summary>
 /// Interface language. English is the default on first launch; the choice is stored in the configuration.
-/// Every visible text goes through <see cref="tr"/>, which receives both versions side by side.
+/// Every visible text goes through <see cref="tr"/>, which receives the versions side by side (Spanish, English,
+/// Japanese).
 /// </summary>
 internal static class Loc
 {
@@ -37,13 +39,26 @@ internal static class Loc
         }
     }
 
-    /// <summary>Configuration code of a language ("en" or "es").</summary>
-    public static string Code(UiLanguage l) => l == UiLanguage.Es ? "es" : "en";
+    /// <summary>The languages with their own names, in menu order: English, Español, 日本語.</summary>
+    public static readonly (UiLanguage Lang, string Name)[] All =
+        { (UiLanguage.En, "English"), (UiLanguage.Es, "Español"), (UiLanguage.Ja, "日本語") };
+
+    /// <summary>Configuration code of a language ("en", "es" or "ja").</summary>
+    public static string Code(UiLanguage l) => l switch { UiLanguage.Es => "es", UiLanguage.Ja => "ja", _ => "en" };
 
     /// <summary>Language for a configuration code; anything unknown means English.</summary>
-    public static UiLanguage FromCode(string code) =>
-        string.Equals(code, "es", StringComparison.OrdinalIgnoreCase) ? UiLanguage.Es : UiLanguage.En;
+    public static UiLanguage FromCode(string code) => code?.Trim().ToLowerInvariant() switch
+    {
+        "es" => UiLanguage.Es,
+        "ja" => UiLanguage.Ja,
+        _ => UiLanguage.En,
+    };
 
     /// <summary>Returns the text for the current interface language.</summary>
-    public static string tr(string es, string en) => current == UiLanguage.Es ? es : en;
+    public static string tr(string es, string en, string ja) => current switch
+    {
+        UiLanguage.Es => es,
+        UiLanguage.Ja => ja,
+        _ => en,
+    };
 }

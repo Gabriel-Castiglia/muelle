@@ -471,16 +471,31 @@ internal static class Shell
         catch { return null; }
     }
 
-    /// <summary>What the icon of a program depends on: its date, and the icon its shortcuts name and that file's date.
-    /// When it changes (the program was updated, or it changed the colour of its icon) the dock reads the icon again.</summary>
-    public static string IconSignature(string exe)
+    /// <summary>
+    /// What the icon of a dock item depends on, as cheap file dates: the icon chosen in the settings, the shortcut
+    /// itself (its icon can be changed in its properties), the program, the icon its shortcuts name (Vigía's
+    /// colour) and, for packaged apps (Store, Teams, Terminal…), the installed package, whose folder carries its
+    /// version. When any of them changes the dock reads the icon again, without restarting.
+    /// </summary>
+    public static string IconSignature(string path, string chosenIcon, string exe)
     {
-        if (string.IsNullOrWhiteSpace(exe) || exe.StartsWith(WindowTracker.AumidPrefix, StringComparison.Ordinal)) return "";
+        static long Date(string f)
+        {
+            try { return !string.IsNullOrWhiteSpace(f) && File.Exists(f) ? File.GetLastWriteTimeUtc(f).Ticks : 0; }
+            catch { return 0; }
+        }
         try
         {
+            string sig = chosenIcon + ":" + Date(chosenIcon) + "|" + Date(path);
+            if (string.IsNullOrWhiteSpace(exe)) return sig;
+            if (exe.StartsWith(WindowTracker.AumidPrefix, StringComparison.Ordinal))
+            {
+                string aumid = exe.Substring(WindowTracker.AumidPrefix.Length);
+                int bang = aumid.IndexOf('!');
+                return sig + "|" + (bang > 0 ? PackageFolder(aumid.Substring(0, bang)) : null);
+            }
             string themed = ThemedIconPath(exe);
-            return (File.Exists(exe) ? File.GetLastWriteTimeUtc(exe).Ticks : 0) + "|" + themed + "|" +
-                   (themed != null ? File.GetLastWriteTimeUtc(themed).Ticks : 0);
+            return sig + "|" + Date(exe) + "|" + themed + ":" + Date(themed);
         }
         catch { return ""; }
     }

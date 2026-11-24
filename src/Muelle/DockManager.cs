@@ -118,9 +118,9 @@ internal sealed class DockManager
     private DispatcherTimer iconTimer;
 
     /// <summary>
-    /// An app that was updated, or that changed the colour of its icon (Vigía), shows its new icon without restarting
-    /// the dock: every 15 s the dates its icons were read from are compared (a few file dates, no icon is read unless
-    /// one changed). Returns how many icons were read again.
+    /// An app that was updated (also Store apps), that changed the colour of its icon (Vigía), or whose shortcut or
+    /// chosen icon changed, shows its new icon without restarting the dock: every 15 s the dates its icons were read
+    /// from are compared (a few file dates, no icon is read unless one changed). Returns how many icons were read again.
     /// </summary>
     public int RefreshIcons()
     {
@@ -135,7 +135,7 @@ internal sealed class DockManager
                     if (Walk(it.Children) && string.IsNullOrWhiteSpace(it.Cfg.Icon)) it.Icon = DockItem.StackIcon(it.Children.Select(c => c.Icon));
                     continue;
                 }
-                if (it.ExePath == null || Shell.IconSignature(it.ExePath) == it.IconSig) continue;
+                if (it.CurrentIconSig() == it.IconSig) continue;
                 var fresh = DockItem.From(it.Cfg);
                 it.Icon = fresh.Icon; it.IconSig = fresh.IconSig;
                 n++; any = true;
@@ -164,7 +164,7 @@ internal sealed class DockManager
                                 Path.Combine(sys, @"WindowsPowerShell\v1.0\powershell.exe"));
         var tools = Existing(Path.Combine(sys, "notepad.exe"), Path.Combine(sys, "calc.exe"), Path.Combine(sys, "Taskmgr.exe"),
                              Path.Combine(sys, @"WindowsPowerShell\v1.0\powershell.exe"));
-        Config.Items.Insert(Math.Min(2, Config.Items.Count), new DockItemConfig { Name = Loc.tr("Utilidades", "Utilities"), Stack = tools });
+        Config.Items.Insert(Math.Min(2, Config.Items.Count), new DockItemConfig { Name = Loc.tr("Utilidades", "Utilities", "ユーティリティ"), Stack = tools });
         Items.Clear();
         foreach (var c in Config.Items) Items.Add(DockItem.From(c));
         // Fixed "open" dots, not those of the apps that happen to be open on the machine that takes the picture.
