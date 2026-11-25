@@ -32,6 +32,10 @@ command -v pandoc >/dev/null || { echo "pandoc is missing: brew install pandoc (
 native() { if command -v cygpath >/dev/null; then cygpath -m "$1"; else printf '%s' "$1"; fi; }
 REPO="https://github.com/Gabriel-Castiglia/muelle"
 VERSION=$(sed -n 's|.*<Version>\(.*\)</Version>.*|\1|p' src/Muelle/Muelle.csproj | head -1)
+# The line under the title of each README names the version; 2.3.2 to 2.4.1 went out with "version 2.3.1" there.
+for f in README.md:version README.es.md:versión; do
+    grep -q "· ${f#*:} $VERSION ·" "${f%%:*}" || { echo "${f%%:*} does not say \"${f#*:} $VERSION\" under its title" >&2; exit 1; }
+done
 
 TEMP="$(mktemp -d)"
 trap 'rm -rf "$TEMP"' EXIT

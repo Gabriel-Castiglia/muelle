@@ -1,7 +1,7 @@
 Muelle
 ======
 
-Gabriel Castiglia · 23 de noviembre de 2026 · versión 2.3.1 · GPL-2.0-only
+Gabriel Castiglia · 25 de noviembre de 2026 · versión 2.4.2 · GPL-2.0-only
 
 English (README.txt) · Español
 
@@ -11,12 +11,12 @@ Manual en PDF: docs/Muelle-manual-es.pdf
 
 Muelle es un dock de aplicaciones para Windows 10 y 11, escrito en C# con .NET 10 y WPF. Puede ser
 un dock flotante que amplía los iconos al pasar el puntero, al estilo de macOS, o un panel fijo de
-borde a borde, al estilo de Ubuntu. La interfaz está en inglés y en castellano: arranca en el idioma
-elegido al instalar (en inglés si corre sin instalación) y se cambia cuando se quiera. El nombre es
-la palabra castellana para el lugar donde amarran los barcos, que en inglés se dice «dock». Puede
-ser claro, oscuro o seguir a Windows, en uno de doce colores. Varios accesos pueden compartir un
-icono como pila, cada pantalla puede tener sus propios iconos, y las versiones nuevas se instalan
-solas.
+borde a borde, al estilo de Ubuntu. La interfaz está en inglés, castellano y japonés: arranca en el
+idioma elegido al instalar (en inglés si corre sin instalación) y se cambia cuando se quiera. El
+nombre es la palabra castellana para el lugar donde amarran los barcos, que en inglés se dice
+«dock». Puede ser claro, oscuro o seguir a Windows, en uno de doce colores. Varios accesos pueden
+compartir un icono como pila, cada pantalla puede tener sus propios iconos, y las versiones nuevas
+se instalan solas.
 
 Requisitos
 ----------
@@ -35,17 +35,18 @@ formas de tener Muelle, y scripts\build.ps1 deja las tres en la carpeta dist:
 
   Archivo            Qué es
   ------------------ ----------------------------------------------------------------------------------------------------------------
-  muelle-setup.exe   El instalador, en inglés o en castellano. Es la forma habitual.
+  muelle-setup.exe   El instalador, en inglés, castellano o japonés. Es la forma habitual.
   muelle.msi         La misma instalación como paquete de Windows Installer, para instalar sin ventanas: msiexec /i muelle.msi /qn.
   Muelle.exe         El programa solo; anda sin instalar, desde cualquier carpeta.
 
 Con el archivo SHA256SUMS.txt de cada versión se puede comprobar una descarga antes, en PowerShell:
 Get-FileHash muelle-setup.exe.
 
-El instalador abre una ventana con un menú de idioma arriba a la derecha, y cada página cambia de
-idioma en el acto. Instala Muelle para todos los usuarios en C:\Program Files\Muelle, lo que pide
-permisos de administrador (Windows los pide al empezar), y lo agrega al menú Inicio. El idioma
-elegido en esa ventana es el que usa el dock la primera vez que arranca.
+El instalador abre una ventana con un menú de idioma arriba a la derecha (primero inglés, después
+castellano y japonés), y cada página cambia de idioma en el acto. Instala Muelle para todos los
+usuarios en C:\Program Files\Muelle, lo que pide permisos de administrador (Windows los pide al
+empezar), y lo agrega al menú Inicio. El idioma elegido en esa ventana es el que usa el dock la
+primera vez que arranca.
 
 Correr un muelle-setup.exe más nuevo actualiza el Muelle instalado y conserva la configuración de
 cada usuario. Si Muelle está abierto, el instalador lo cierra antes de reemplazar sus archivos. Una
@@ -77,28 +78,31 @@ Uso del dock
   varias ventanas, cada clic trae la siguiente. Un clic sobre la única ventana que ya está al frente
   la minimiza. Mayúsculas+clic o el botón del medio abren una ventana nueva.
 - El icono rebota mientras la aplicación arranca, y un punto debajo marca las aplicaciones abiertas.
-- Cada icono sigue a su aplicación: cuando se actualiza, o cuando cambia el color de su propio icono
-  (como hace Vigía con el color del tema), el dock muestra el nuevo en menos de 15 segundos, sin
-  reiniciarse. Para un programa, el dock toma el icono que nombran los accesos directos del propio
-  programa cuando ese archivo está en la carpeta del programa; un icono elegido a mano para un
-  acceso, de cualquier otro lado, no se toca.
-- Las aplicaciones abiertas que no están en el dock aparecen al final y se van al cerrarse.
-  «Mantener en el dock» en su menú, o arrastrarlas entre las demás, las deja fijas.
+- Cada icono sigue a su aplicación: cuando se actualiza (también las apps de la Tienda), cuando
+  cambia el color de su propio icono (como hace Vigía con el color del tema), o cuando cambia su
+  acceso directo o el archivo del icono elegido, el dock muestra el nuevo en menos de 15 segundos,
+  sin reiniciarse. Para un programa, el dock toma el icono que nombran los accesos directos del
+  propio programa cuando ese archivo está en la carpeta del programa; un icono elegido a mano para
+  un acceso, de cualquier otro lado, no se toca.
+- Las aplicaciones abiertas que no están en el dock aparecen al final y se van al cerrarse. «Fijar
+  al dock» en su menú, o arrastrarlas entre las demás, las deja fijas.
 - Las aplicaciones se agregan soltando un acceso directo o un .exe sobre el dock, con «Agregar
   aplicación…» en el menú del dock o desde Configuración. También se pueden agregar apps de la
   Tienda (Teams, Terminal…) y objetos del sistema como el Panel de control.
 - Los iconos se reordenan arrastrándolos a lo largo del dock y se quitan arrastrándolos afuera.
-  «Bloquear iconos» impide las dos cosas, para evitar cambios por accidente.
+  «Bloquear dock» impide las dos cosas, y también fijar, liberar y renombrar desde el menú, para
+  evitar cambios por accidente.
 - Una pila es un icono que guarda varios accesos: un clic los despliega al lado. Ver Pilas (#pilas).
 - Cuando los iconos no entran en una pantalla, se achican solo en esa pantalla.
 - Con una aplicación a pantalla completa (un video, un juego) el dock pasa por detrás.
 
-El clic derecho sobre un icono ofrece Mostrar (o Abrir), Abrir otra ventana, Ejecutar como
-administrador, Abrir ubicación del archivo, Finalizar tarea (en las aplicaciones con procesos
-propios) y Mover a la pila (si el dock tiene una pila), y Mantener en el dock o Quitar del dock. El
-clic derecho sobre el dock ofrece Agregar aplicación…, Nueva pila…, el cambio entre dock flotante y
-panel fijo, Bloquear iconos, los menús de idioma y de apariencia, Configuración…, Buscar
-actualizaciones, Acerca de Muelle… y Salir de Muelle.
+El clic derecho sobre un icono ofrece un menú corto: Abrir otra ventana (o Abrir, si la aplicación
+está cerrada), Renombrar…, Fijar al dock o Liberar del dock, y Más (Ejecutar como administrador,
+Abrir ubicación del archivo, Mover a la pila); después Bloquear dock, Configuración… y Salir de
+Muelle. Finalizar tarea va al final y aparte, solo mientras la aplicación está abierta. El clic
+derecho en una parte vacía del dock ofrece Agregar aplicación…, Nueva pila…, Bloquear dock,
+Configuración… y Salir de Muelle. Todo lo demás (estilo, idioma, apariencia, actualizaciones, Acerca
+de) está en Configuración. Si se renombra con el nombre vacío, vuelve al nombre del programa.
 
 Pilas
 -----
@@ -110,7 +114,9 @@ frente si ya está abierto. «Editar pila…», al final de la lista, abre el ed
 - «Nueva pila…», en el menú del dock o en Configuración → Aplicaciones del dock, crea una.
 - En el editor: el nombre de la pila; su icono, uno propio («Elegir icono…»: un .ico, un programa o
   una imagen) o «Icono automático», sus primeros cuatro accesos en cuadrícula; y sus accesos, con
-  Agregar…, Quitar, Subir y Bajar. El dock no cambia hasta «Guardar».
+  Agregar…, Quitar, Subir y Bajar. El dock no cambia hasta «Guardar». Si la pila salió del dock
+  mientras se editaba (se quitó, o se cambió «Cada pantalla con sus propios iconos»), «Guardar» lo
+  avisa y no cambia nada.
 - «Mover a la pila», en el menú de un icono, pone ese icono al final de una pila.
 - Una pila se mueve y se quita como cualquier otro icono. Una app abierta que está en una pila no
   vuelve a aparecer al final del dock.
@@ -140,10 +146,10 @@ Clic derecho sobre el dock → Configuración…. Cada cambio se aplica en el mo
   ----------------------- ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   Estilo                  Dock flotante (estilo Mac) o panel fijo (estilo Ubuntu); opacidad del panel.
   Ubicación               Borde de la pantalla; la pantalla principal, todas las pantallas (una copia en cada una) o una pantalla concreta; cada pantalla con sus propios iconos.
-  Comportamiento          Reservar la franja de pantalla, ocultar automáticamente, mostrar las apps abiertas que no están fijadas, bloquear los iconos, iniciar con Windows, buscar versiones nuevas.
+  Comportamiento          Reservar la franja de pantalla, ocultar automáticamente, mostrar las apps abiertas que no están fijadas, bloquear el dock, iniciar con Windows, buscar versiones nuevas.
   Apariencia              Como Windows, claro u oscuro; uno de doce colores.
   Iconos                  Tamaño (de 24 a 96 px), ampliación al pasar el puntero (hasta el doble), fondo del dock flotante.
-  Idioma                  Inglés o castellano.
+  Idioma                  Inglés, castellano o japonés.
   Aplicaciones del dock   La lista de aplicaciones fijas y pilas, con Agregar, Nueva pila, Editar pila (o doble clic), Quitar, Subir y Bajar; con iconos propios por pantalla, la pantalla cuyos iconos se listan.
 
 Apariencia
@@ -171,8 +177,11 @@ actualizaciones», en el menú del dock y en Acerca de Muelle…, pregunta cuand
 versión más nueva, una ventana chica hace una sola pregunta: Actualizar ahora, Ver novedades (la
 página de la versión) o Más tarde. Después de «Actualizar ahora» todo pasa solo:
 
-1.  El instalador de esa versión, muelle-setup.exe, se baja a %TEMP%\MuelleUpdate y se compara con
-    el SHA256SUMS.txt de la misma versión. Un archivo que no coincide se borra y nunca se ejecuta.
+1.  El SHA256SUMS.txt de esa versión tiene que llevar la firma del autor (release.sig, que se
+    comprueba con dos claves que trae Muelle); una versión sin firma válida se rechaza y solo se
+    puede bajar a mano desde su página. Después el instalador, muelle-setup.exe, se baja a
+    %TEMP%\MuelleUpdate y se compara con ese SHA256SUMS.txt. Un archivo que no coincide se borra y
+    nunca se ejecuta.
 2.  Muelle anota cómo se lo abrió y se cierra.
 3.  El instalador instala en silencio, con el idioma elegido al instalar Muelle; Windows pide
     permiso de administrador, como en cualquier instalación. Espera a que Muelle se haya cerrado, y
@@ -189,20 +198,22 @@ Configuración → Comportamiento.
 Idioma
 ------
 
-La interfaz está en inglés y en castellano. El idioma se cambia desde el menú del dock (Idioma /
-Language, rotulado en los dos idiomas para encontrarlo desde cualquiera) o en Configuración, y queda
-guardado. Los nombres de las aplicaciones que Muelle agrega en su primer arranque (Explorador de
-archivos, Bloc de notas, Calculadora…) siguen el idioma de la interfaz.
+La interfaz está en inglés, castellano y japonés. El idioma se cambia en Configuración (Language /
+Idioma / 言語, rotulado en los tres idiomas para encontrarlo desde cualquiera), y queda guardado. La
+ventana del instalador arranca en inglés, salvo que Muelle ya esté instalado en otro idioma. Los
+nombres de las aplicaciones que Muelle agrega en su primer arranque (Explorador de archivos, Bloc de
+notas, Calculadora…) siguen el idioma de la interfaz.
 
 Archivos
 --------
 
   Qué                                  Dónde
-  ------------------------------------ ---------------------------------------------------------------------------------------------
+  ------------------------------------ -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   Programa instalado                   C:\Program Files\Muelle, con LICENSE.txt, README.txt y README.es.txt
-  Configuración                        %APPDATA%\Muelle\config.json (se puede borrar para empezar de cero)
+  Configuración                        %APPDATA%\Muelle\config.json (se puede borrar para empezar de cero); la versión anterior al último guardado, en config.previous.json
+  Configuración que no se pudo leer    Un icono o un ajuste que esta versión no puede leer se descarta solo, nunca la lista entera: lo descartado va a config.dropped-<fecha>.json y el archivo completo, tal como estaba, a config.partial-<fecha>.json
   Registro de errores, si algo falla   %APPDATA%\Muelle\muelle.log, de menos de 512 KB (la parte anterior queda en muelle.old.log)
-  Actualización en curso               %TEMP%\MuelleUpdate (el instalador y cómo se abrió Muelle)
+  Actualización en curso               %TEMP%\MuelleUpdate (el instalador y cómo se abrió Muelle); se borra un minuto después de instalada
 
 Limitaciones conocidas
 ----------------------
@@ -221,9 +232,9 @@ Con el SDK de .NET 10 <https://dotnet.microsoft.com/download> instalado:
     powershell -ExecutionPolicy Bypass -File scripts\build.ps1
 
 El primer comando compila el programa. El segundo arma todo en dist: el Muelle.exe suelto,
-muelle.msi, muelle-setup.exe y SHA256SUMS.txt; el WiX Toolset 5 se baja solo como paquete NuGet.
-Cada versión publicada tiene que llevar muelle-setup.exe y SHA256SUMS.txt con esos nombres, porque
-las actualizaciones los buscan.
+muelle.msi y muelle-setup.exe, y muestra sus hashes SHA-256; el WiX Toolset 5 se baja solo como
+paquete NuGet. Cada versión publicada tiene que llevar muelle-setup.exe, SHA256SUMS.txt y
+release.sig con esos nombres, porque las actualizaciones los buscan.
 
 Muelle.exe --self-test <registro> revisa el archivo de configuración, las pilas, los iconos por
 pantalla y las funciones de actualización (comparación de versiones, hashes, la línea de comandos
@@ -240,10 +251,10 @@ README.es.txt a partir de README.md y de este archivo. scripts/make_icon.py dibu
 doce colores a partir del grabado de assets/ (Python 3 con numpy, opencv-python y Pillow).
 
   Carpeta             Contenido
-  ------------------- -----------------------------------------------------------------------------------
+  ------------------- -----------------------------------------------------------------------------------------
   src/Muelle          El programa.
   installer/Msi       El paquete MSI (WiX).
-  installer/SetupUI   La ventana del instalador, en inglés y en castellano (.NET Framework 4.7.2, WPF).
+  installer/SetupUI   La ventana del instalador, en inglés, castellano y japonés (.NET Framework 4.7.2, WPF).
   installer/Setup     El instalador que lleva esa ventana y el MSI (bundle de WiX).
   scripts             Compilación, imágenes, icono y manuales.
   assets              El grabado del que sale el ícono.

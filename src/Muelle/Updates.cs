@@ -24,20 +24,22 @@ using static Muelle.Loc;
 
 namespace Muelle;
 
-/// <summary>A release on GitHub: its version, its page, and where its setup and its hashes are (null if it lacks them).</summary>
+/// <summary>A release on GitHub: its version, its page, and where its setup, its hashes and the author's signature of
+/// the hashes are (null if it lacks them). Without all three it can only be offered as a page.</summary>
 internal sealed class Release
 {
     public string Tag = "";
     public string Page = Updates.Page;
-    public string SetupUrl, SumsUrl;
-    public bool CanInstall => SetupUrl != null && SumsUrl != null;
+    public string SetupUrl, SumsUrl, SigUrl;
+    public bool CanInstall => SetupUrl != null && SumsUrl != null && SigUrl != null;
 }
 
 /// <summary>
 /// Updates that install themselves. Once a day (if the option is on) and on request (dock menu, About Muelle…),
 /// Muelle asks GitHub for its latest release. When it is newer, one question: update now, see what is new, or later.
-/// Then everything happens alone: the setup of the release is downloaded and checked against the release's
-/// SHA256SUMS.txt (a file that does not match is deleted and never run), Muelle notes how it was started and quits,
+/// Then everything happens alone: the release's SHA256SUMS.txt must carry the author's signature (release.sig,
+/// ReleaseSignature.cs: a release without a valid one is never installed), the setup is downloaded and checked
+/// against that SHA256SUMS.txt (a file that does not match is deleted and never run), Muelle notes how it was started and quits,
 /// and the setup installs in silence, keeping the install options (it reads the language from the installed copy),
 /// waits for this Muelle to be gone, closes any other copy that runs from the install folder, and starts Muelle again
 /// with the same arguments. If something fails, Muelle keeps going (or comes back) and says what happened.
@@ -101,6 +103,7 @@ internal static class Updates
                 var url = a.GetProperty("browser_download_url").GetString();
                 if (name.Equals(SetupName, StringComparison.OrdinalIgnoreCase)) r.SetupUrl = url;
                 else if (name.Equals(SumsName, StringComparison.OrdinalIgnoreCase)) r.SumsUrl = url;
+                else if (name.Equals(ReleaseSignature.AssetName, StringComparison.OrdinalIgnoreCase)) r.SigUrl = url;
             }
         return r;
     }
@@ -189,7 +192,15 @@ internal static class Updates
             using (var http = NewHttp(TimeSpan.FromMinutes(15)))
             {
                 progress(tr("Comprobando la versión nueva…", "Checking the new version…", "新しいバージョンを確認しています…"));
-                var expected = HashFor(await http.GetStringAsync(release.SumsUrl), SetupName)
+                // the author's signature of the hashes first (ReleaseSignature.cs): without a valid one nothing is
+                // downloaded or run, so a release put on the page by someone else never installs itself
+                var signature = await http.GetStringAsync(release.SigUrl);
+                var sums = await http.GetByteArrayAsync(release.SumsUrl);
+                if (!ReleaseSignature.Valid(sums, signature))
+                    throw new InvalidOperationException(tr("La firma del release no es válida: no se instaló nada. Se puede bajar a mano desde su página.",
+                                                           "The release's signature is not valid: nothing was installed. It can be downloaded by hand from its page.",
+                                                           "リリースの署名が無効なため、何もインストールしませんでした。ページから手動でダウンロードできます。"));
+                var expected = HashFor(System.Text.Encoding.UTF8.GetString(sums), SetupName)
                                ?? throw new InvalidOperationException(tr($"El release no tiene el hash de {SetupName}.", $"The release has no hash for {SetupName}.", $"リリースに {SetupName} のハッシュがありません。"));
                 using (var resp = await http.GetAsync(release.SetupUrl, HttpCompletionOption.ResponseHeadersRead))
                 {

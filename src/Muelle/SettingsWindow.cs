@@ -256,8 +256,8 @@ internal sealed class SettingsWindow : Window
         box.Children.Add(Check(tr("Mostrar también las apps abiertas que no están fijadas (desaparecen al cerrarse)",
                                   "Also show open apps that are not pinned (they leave when closed)", "固定していない起動中のアプリも表示する (閉じると消えます)"), Config.ShowRunningApps,
             v => { Config.ShowRunningApps = v; Apply(); manager.RefreshRunning(); }));
-        box.Children.Add(Check(tr("Bloquear los iconos (no se pueden agregar, quitar ni reordenar arrastrando)",
-                                  "Lock the icons (they cannot be added, removed or reordered by dragging)", "アイコンをロックする (ドラッグによる追加・削除・並べ替えができなくなります)"), Config.LockItems,
+        box.Children.Add(Check(tr("Bloquear dock (los iconos no se pueden agregar, quitar, reordenar, fijar ni renombrar)",
+                                  "Lock dock (icons cannot be added, removed, reordered, pinned or renamed)", "ドックをロック (アイコンの追加・削除・並べ替え・固定・名前の変更ができなくなります)"), Config.LockItems,
             v => manager.SetLocked(v)));
         box.Children.Add(Check(tr("Iniciar Muelle al encender Windows", "Start Muelle when Windows starts", "Windows の起動時に Muelle を開始する"), Config.StartWithWindows, v =>
         {

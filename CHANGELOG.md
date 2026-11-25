@@ -2,6 +2,25 @@
 
 All notable changes to Muelle. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 2.4.2 - 2026-11-25
+
+### Changed
+
+- **Updates signed by the author**: the `SHA256SUMS.txt` of a release must now carry the author's signature
+  (`release.sig`, ECDSA P-256, checked against two keys built into Muelle) before the setup is downloaded. Before,
+  the setup was checked only against hashes that came from the same page, so a release put there by someone else
+  would have installed itself. A release without a valid signature is offered as a page, to download by hand.
+  Anyone can still download, install and share Muelle as before. Muelle 2.4.1 and older install this one as usual.
+
+### Fixed
+
+- Settings said "Lock the icons" while the right-click menu says "Lock dock", and the option locks more than the
+  icons' order: it is "Lock dock" in both places now, and its text names what it stops (adding, removing,
+  reordering, pinning and renaming icons).
+- The manuals (PDF) and the `README.txt` installed next to `Muelle.exe` described version 2.3.1 since 2.3.2: they
+  are made again from the READMEs of this version. Building the manuals now stops when the version written under
+  the title of a README is not the program's.
+
 ## 2.4.1 - 2026-11-25
 
 ### Fixed

@@ -410,10 +410,25 @@ internal static class SelfTest
             { "tag_name": "v9.8.7", "html_url": "https://example.com/r",
               "assets": [ { "name": "muelle.msi", "browser_download_url": "https://example.com/msi" },
                           { "name": "muelle-setup.exe", "browser_download_url": "https://example.com/setup" },
-                          { "name": "SHA256SUMS.txt", "browser_download_url": "https://example.com/sums" } ] }
+                          { "name": "SHA256SUMS.txt", "browser_download_url": "https://example.com/sums" },
+                          { "name": "release.sig", "browser_download_url": "https://example.com/sig" } ] }
             """);
-        Check("a release: its version, page, setup and hashes", release.Tag == "9.8.7" && release.Page == "https://example.com/r"
-              && release.SetupUrl == "https://example.com/setup" && release.SumsUrl == "https://example.com/sums" && release.CanInstall);
+        Check("a release: its version, page, setup, hashes and signature", release.Tag == "9.8.7" && release.Page == "https://example.com/r"
+              && release.SetupUrl == "https://example.com/setup" && release.SumsUrl == "https://example.com/sums"
+              && release.SigUrl == "https://example.com/sig" && release.CanInstall);
+        Check("a release without the author's signature cannot install itself", !Updates.Parse("""
+            { "tag_name": "v9", "assets": [ { "name": "muelle-setup.exe", "browser_download_url": "https://example.com/setup" },
+                                            { "name": "SHA256SUMS.txt", "browser_download_url": "https://example.com/sums" } ] }
+            """).CanInstall);
+        // release.sig: real signatures by the author's two keys (the PC's, the Mac's) of the same bytes; any change is refused
+        var signed = Encoding.UTF8.GetBytes("0123456789abcdef0123456789abcdef0123456789abcdef0123456789ABCDEF  Vigia-Setup-9.9.9.exe\n"
+                                            + "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff *Vigia_Manual_EN.pdf\n");
+        const string pcSig = "rEEKYRSXLO7VKbID/El7ZkFBh1uKIPNS38KopNSZ6DEm7knfIUjxch9kmv8xfREc6bLKka+bePFZ1BKzO+15ww==";
+        const string macSig = "K8+3h6FgPjn2ZyH3HsLWof4obfKfyW00p3YKE9WQFoEF+umfN6/OMxMQNrQbc3XqkKrZSz3QexCBIZEMrdrvKg==";
+        var changed = (byte[])signed.Clone(); changed[0] ^= 1;
+        Check("the release signature: either key, exactly those bytes", ReleaseSignature.Valid(signed, pcSig + "\n") && ReleaseSignature.Valid(signed, macSig)
+              && !ReleaseSignature.Valid(changed, pcSig) && !ReleaseSignature.Valid(changed, macSig)
+              && !ReleaseSignature.Valid(signed, "") && !ReleaseSignature.Valid(signed, null) && !ReleaseSignature.Valid(signed, "not base64!"));
         Check("a release without hashes cannot install itself", !Updates.Parse("""{ "tag_name": "v9", "assets": [] }""").CanInstall);
 
         string dir = DockConfig.Folder, file = Path.Combine(dir, "setup.bin");
@@ -439,10 +454,12 @@ internal static class SelfTest
     {
         var latest = Updates.LatestAsync().GetAwaiter().GetResult();
         Line($"  (latest release on GitHub: {latest.Tag})");
-        Check("GitHub names the latest release, with its setup and hashes", latest.Tag.Length > 0 && latest.CanInstall);
+        Check("GitHub names the latest release, with its setup, hashes and signature", latest.Tag.Length > 0 && latest.CanInstall);
         if (!latest.CanInstall) return;
         using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromMinutes(5) };
         http.DefaultRequestHeaders.UserAgent.ParseAdd("Muelle/" + Updates.Current);
+        Check("its SHA256SUMS.txt carries a valid signature of the author", ReleaseSignature.Valid(
+            http.GetByteArrayAsync(latest.SumsUrl).GetAwaiter().GetResult(), http.GetStringAsync(latest.SigUrl).GetAwaiter().GetResult()));
         string expected = Updates.HashFor(http.GetStringAsync(latest.SumsUrl).GetAwaiter().GetResult(), Updates.SetupName);
         Check("its SHA256SUMS.txt has the hash of the setup", expected != null);
         string file = Path.Combine(DockConfig.Folder, Updates.SetupName);

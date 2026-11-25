@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/dock-es.png" width="720" alt="El dock en el borde de abajo de la pantalla"></p>
 
-Gabriel Castiglia · 23 de noviembre de 2026 · versión 2.3.1 · GPL-2.0-only
+Gabriel Castiglia · 25 de noviembre de 2026 · versión 2.4.2 · GPL-2.0-only
 
 [English](README.md) · Español
 
@@ -145,7 +145,7 @@ Clic derecho sobre el dock → Configuración…. Cada cambio se aplica en el mo
 |---|---|
 | Estilo | Dock flotante (estilo Mac) o panel fijo (estilo Ubuntu); opacidad del panel. |
 | Ubicación | Borde de la pantalla; la pantalla principal, todas las pantallas (una copia en cada una) o una pantalla concreta; cada pantalla con sus propios iconos. |
-| Comportamiento | Reservar la franja de pantalla, ocultar automáticamente, mostrar las apps abiertas que no están fijadas, bloquear los iconos, iniciar con Windows, buscar versiones nuevas. |
+| Comportamiento | Reservar la franja de pantalla, ocultar automáticamente, mostrar las apps abiertas que no están fijadas, bloquear el dock, iniciar con Windows, buscar versiones nuevas. |
 | Apariencia | Como Windows, claro u oscuro; uno de doce colores. |
 | Iconos | Tamaño (de 24 a 96 px), ampliación al pasar el puntero (hasta el doble), fondo del dock flotante. |
 | Idioma | Inglés, castellano o japonés. |
@@ -176,8 +176,10 @@ el menú del dock y en Acerca de Muelle…, pregunta cuando se quiera. Si hay un
 ventana chica hace una sola pregunta: Actualizar ahora, Ver novedades (la página de la versión) o Más
 tarde. Después de «Actualizar ahora» todo pasa solo:
 
-1. El instalador de esa versión, `muelle-setup.exe`, se baja a `%TEMP%\MuelleUpdate` y se compara con el
-   `SHA256SUMS.txt` de la misma versión. Un archivo que no coincide se borra y nunca se ejecuta.
+1. El `SHA256SUMS.txt` de esa versión tiene que llevar la firma del autor (`release.sig`, que se comprueba con
+   dos claves que trae Muelle); una versión sin firma válida se rechaza y solo se puede bajar a mano desde su
+   página. Después el instalador, `muelle-setup.exe`, se baja a `%TEMP%\MuelleUpdate` y se compara con ese
+   `SHA256SUMS.txt`. Un archivo que no coincide se borra y nunca se ejecuta.
 2. Muelle anota cómo se lo abrió y se cierra.
 3. El instalador instala en silencio, con el idioma elegido al instalar Muelle; Windows pide permiso de
    administrador, como en cualquier instalación. Espera a que Muelle se haya cerrado, y cierra cualquier
@@ -226,8 +228,8 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1
 
 El primer comando compila el programa. El segundo arma todo en `dist`: el `Muelle.exe` suelto,
 `muelle.msi` y `muelle-setup.exe`, y muestra sus hashes SHA-256; el WiX Toolset 5 se baja solo como paquete NuGet.
-Cada versión publicada tiene que llevar `muelle-setup.exe` y `SHA256SUMS.txt` con esos nombres, porque las
-actualizaciones los buscan.
+Cada versión publicada tiene que llevar `muelle-setup.exe`, `SHA256SUMS.txt` y `release.sig` con esos nombres,
+porque las actualizaciones los buscan.
 
 `Muelle.exe --self-test <registro>` revisa el archivo de configuración, las pilas, los iconos por pantalla
 y las funciones de actualización (comparación de versiones, hashes, la línea de comandos del instalador), y

@@ -81,7 +81,7 @@ internal sealed class DockManager
                 "update" => new UpdateWindow(this, new Release
                 {
                     Tag = new Version(Updates.Current.Major, Updates.Current.Minor + 1, 0).ToString(),
-                    SetupUrl = Updates.SetupName, SumsUrl = Updates.SumsName,
+                    SetupUrl = Updates.SetupName, SumsUrl = Updates.SumsName, SigUrl = ReleaseSignature.AssetName,
                 }),
                 "menu" => MenuPreview(),
                 "stack" => MenuPreview(Items.FirstOrDefault(i => i.IsStack)),

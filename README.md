@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/dock-en.png" width="720" alt="The dock at the bottom of the screen"></p>
 
-Gabriel Castiglia · November 23, 2026 · version 2.3.1 · GPL-2.0-only
+Gabriel Castiglia · November 25, 2026 · version 2.4.2 · GPL-2.0-only
 
 English · [Español](README.es.md)
 
@@ -142,7 +142,7 @@ Right-click the dock → Settings…. Every change applies at once.
 |---|---|
 | Style | Floating dock (Mac style) or fixed panel (Ubuntu style); panel opacity. |
 | Location | Screen edge; the primary screen, every screen (one copy on each) or a specific screen; each screen with its own icons. |
-| Behavior | Reserve the screen strip, hide automatically, show open apps that are not pinned, lock the icons, start with Windows, look for new versions. |
+| Behavior | Reserve the screen strip, hide automatically, show open apps that are not pinned, lock the dock, start with Windows, look for new versions. |
 | Appearance | As Windows, light or dark; one of twelve colours. |
 | Icons | Size (24 to 96 px), magnification under the pointer (up to twice the size), background of the floating dock. |
 | Language | English, Spanish or Japanese. |
@@ -170,8 +170,10 @@ Once a day, Muelle asks GitHub for its latest release; "Check for updates", in t
 Muelle…, asks at any time. If there is a newer version, a small window asks one question: Update now, What
 is new (the release page) or Later. After "Update now" everything happens by itself:
 
-1. The setup of the release, `muelle-setup.exe`, is downloaded to `%TEMP%\MuelleUpdate` and checked against
-   the `SHA256SUMS.txt` of the same release. A file that does not match is deleted and never run.
+1. The `SHA256SUMS.txt` of the release must carry the author's signature (`release.sig`, checked against two
+   keys built into Muelle); a release without a valid one is refused and can only be downloaded by hand from its
+   page. Then the setup, `muelle-setup.exe`, is downloaded to `%TEMP%\MuelleUpdate` and checked against that
+   `SHA256SUMS.txt`. A file that does not match is deleted and never run.
 2. Muelle notes how it was started and closes.
 3. The setup installs in silence, with the language chosen when Muelle was installed; Windows asks for
    administrator rights, as for any installation. It waits for Muelle to be gone, and closes any other copy
@@ -219,7 +221,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1
 
 The first command builds the program. The second builds everything in `dist`: the stand-alone
 `Muelle.exe`, `muelle.msi` and `muelle-setup.exe`, and prints their SHA-256 hashes; the WiX Toolset 5 is restored
-automatically as a NuGet package. A release must carry `muelle-setup.exe` and `SHA256SUMS.txt` with these
+automatically as a NuGet package. A release must carry `muelle-setup.exe`, `SHA256SUMS.txt` and `release.sig` with these
 names, since the updates look for them.
 
 `Muelle.exe --self-test <log>` checks the settings file, the stacks, the icons per screen and the update
