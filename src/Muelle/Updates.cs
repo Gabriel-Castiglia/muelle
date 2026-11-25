@@ -66,6 +66,9 @@ internal static class Updates
 
     private static bool busy;
 
+    /// <summary>Whether the last <see cref="CheckAsync"/> reached GitHub (the daily check counts only then).</summary>
+    public static bool LastCheckReached { get; private set; }
+
     // ---------------- Pure functions (the same in every app of the author) ----------------
     internal static bool IsNewer(string tag, string mine) =>
         System.Version.TryParse(tag.TrimStart('v', 'V'), out var a) && System.Version.TryParse(mine, out var b) && a > b;
@@ -125,9 +128,11 @@ internal static class Updates
     public static async Task<string> CheckAsync(DockManager manager, bool interactive)
     {
         if (busy) return tr("Ya se está actualizando.", "An update is already under way.", "既に更新中です。");
+        LastCheckReached = false;
         try
         {
             var latest = await LatestAsync();
+            LastCheckReached = true;
             if (!IsNewer(latest.Tag, Current.ToString()))
             {
                 string same = tr($"Tenés la última versión ({Current}).", $"You have the latest version ({Current}).", $"最新バージョン ({Current}) を使用しています。");
@@ -148,7 +153,7 @@ internal static class Updates
 
     public static void OpenPage(string page = Page)
     {
-        try { Process.Start(new ProcessStartInfo(page) { UseShellExecute = true }); } catch { }
+        try { Process.Start(new ProcessStartInfo(page) { UseShellExecute = true })?.Dispose(); } catch { }
     }
 
     /// <summary>
@@ -217,7 +222,7 @@ internal static class Updates
             WriteRelaunch(RelaunchFile, Environment.GetCommandLineArgs().Skip(1));
             var psi = new ProcessStartInfo(file) { UseShellExecute = true, WorkingDirectory = UpdateDir };
             foreach (var a in SetupArguments(Environment.ProcessId)) psi.ArgumentList.Add(a);
-            Process.Start(psi);
+            Process.Start(psi)?.Dispose();
             manager.Exit();
         }
         catch (Exception ex)
@@ -265,6 +270,21 @@ internal static class Updates
         catch { return new(); }
     }
 
+    /// <summary>
+    /// After an update that installed, the downloaded setup is no longer needed: its folder is deleted a minute later
+    /// (the setup that started this Muelle may still be finishing). Nothing is said if it cannot be deleted.
+    /// </summary>
+    private static void ForgetDownload()
+    {
+        string dir = UpdateDir;
+        Task.Run(async () =>
+        {
+            await Task.Delay(TimeSpan.FromMinutes(1));
+            try { if (!busy && Directory.Exists(dir)) Directory.Delete(dir, true); }
+            catch (Exception ex) { Program.Log("Could not delete the downloaded update: " + ex.Message); }
+        });
+    }
+
     private static bool IsUpdateArg(string a) => a == "--updated" || a.StartsWith("--update-failed", StringComparison.Ordinal);
 
     /// <summary>
@@ -278,6 +298,7 @@ internal static class Updates
         if (!updated && failure == null) return args;
         busy = false;
         var before = ReadRelaunch(RelaunchFile);
+        if (updated) ForgetDownload();
         return before.Concat(args.Where(a => !IsUpdateArg(a) && !before.Contains(a))).ToArray();
     }
 

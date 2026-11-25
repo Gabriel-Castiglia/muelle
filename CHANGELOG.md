@@ -2,6 +2,38 @@
 
 All notable changes to Muelle. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 2.4.1 - 2026-11-25
+
+### Fixed
+
+- One icon that cannot be read no longer empties the dock. Before, a single damaged icon in `config.json` (a
+  field of another type after editing it by hand, or going back to an older version) dropped the whole list,
+  and the next saves left `config.previous.json` empty too. Now that icon (or that shortcut of a stack) is
+  dropped alone; what was dropped is kept in `config.dropped-<date>.json` and the whole file in
+  `config.partial-<date>.json`, and `config.previous.json` keeps the version that still had it.
+- The settings are written through to the disk before they replace the file: a power cut right after a save
+  leaves the new file or the old one.
+- The daily check for updates counts only when it reached GitHub. A laptop that started without network lost
+  that day's check; now it tries again an hour later.
+- Accepting "Rename…" without changing the name no longer fixes it: a default app's name still follows the
+  interface language.
+- A stack removed (or left on a list that is no longer shown) while its editor was open no longer comes back
+  when "Save" is pressed: the editor says so and changes nothing.
+- A dock that closes (when screens are connected or disconnected, or with a dock per screen) no longer
+  reserves its strip of the screen again a moment later.
+- An app installed with ClickOnce (`.appref-ms`) keeps its dot of "open" after it updates itself.
+- The downloaded setup in `%TEMP%\MuelleUpdate` is deleted after an update installs.
+
+### Changed
+
+- The dock no longer walks the Start menu, the desktop and the taskbar shortcuts every 15 seconds: it watches
+  those folders and reads them again only when something changes (and every 5 minutes, just in case). The
+  dates of the icons' files are read off the window's thread, so an icon on a network folder that does not
+  answer no longer freezes the dock.
+- The list of screens is kept until Windows says they changed, instead of being asked for every second.
+- The right-click menu of a Store app (Teams, Terminal…) opens faster: it no longer opens every process of the
+  system to know whether "End task" applies.
+
 ## 2.4.0 - 2026-11-24
 
 ### Added

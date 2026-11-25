@@ -115,7 +115,8 @@ abierto. «Editar pila…», al final de la lista, abre el editor de la pila.
 - «Nueva pila…», en el menú del dock o en Configuración → Aplicaciones del dock, crea una.
 - En el editor: el nombre de la pila; su icono, uno propio («Elegir icono…»: un `.ico`, un programa o una
   imagen) o «Icono automático», sus primeros cuatro accesos en cuadrícula; y sus accesos, con Agregar…,
-  Quitar, Subir y Bajar. El dock no cambia hasta «Guardar».
+  Quitar, Subir y Bajar. El dock no cambia hasta «Guardar». Si la pila salió del dock mientras se editaba (se
+  quitó, o se cambió «Cada pantalla con sus propios iconos»), «Guardar» lo avisa y no cambia nada.
 - «Mover a la pila», en el menú de un icono, pone ese icono al final de una pila.
 - Una pila se mueve y se quita como cualquier otro icono. Una app abierta que está en una pila no vuelve
   a aparecer al final del dock.
@@ -202,9 +203,10 @@ archivos, Bloc de notas, Calculadora…) siguen el idioma de la interfaz.
 | Qué | Dónde |
 |---|---|
 | Programa instalado | `C:\Program Files\Muelle`, con `LICENSE.txt`, `README.txt` y `README.es.txt` |
-| Configuración | `%APPDATA%\Muelle\config.json` (se puede borrar para empezar de cero) |
+| Configuración | `%APPDATA%\Muelle\config.json` (se puede borrar para empezar de cero); la versión anterior al último guardado, en `config.previous.json` |
+| Configuración que no se pudo leer | Un icono o un ajuste que esta versión no puede leer se descarta solo, nunca la lista entera: lo descartado va a `config.dropped-<fecha>.json` y el archivo completo, tal como estaba, a `config.partial-<fecha>.json` |
 | Registro de errores, si algo falla | `%APPDATA%\Muelle\muelle.log`, de menos de 512 KB (la parte anterior queda en `muelle.old.log`) |
-| Actualización en curso | `%TEMP%\MuelleUpdate` (el instalador y cómo se abrió Muelle) |
+| Actualización en curso | `%TEMP%\MuelleUpdate` (el instalador y cómo se abrió Muelle); se borra un minuto después de instalada |
 
 ## Limitaciones conocidas
 
@@ -223,7 +225,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1
 ```
 
 El primer comando compila el programa. El segundo arma todo en `dist`: el `Muelle.exe` suelto,
-`muelle.msi`, `muelle-setup.exe` y `SHA256SUMS.txt`; el WiX Toolset 5 se baja solo como paquete NuGet.
+`muelle.msi` y `muelle-setup.exe`, y muestra sus hashes SHA-256; el WiX Toolset 5 se baja solo como paquete NuGet.
 Cada versión publicada tiene que llevar `muelle-setup.exe` y `SHA256SUMS.txt` con esos nombres, porque las
 actualizaciones los buscan.
 

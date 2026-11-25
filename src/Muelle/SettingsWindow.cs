@@ -402,7 +402,7 @@ internal sealed class SettingsWindow : Window
         var folder = Button(tr("Abrir carpeta de configuración", "Open settings folder", "設定フォルダーを開く"), () =>
         {
             manager.FlushConfig();
-            try { Process.Start("explorer.exe", "/select,\"" + DockConfig.FilePath + "\""); } catch { }
+            try { Process.Start("explorer.exe", "/select,\"" + DockConfig.FilePath + "\"")?.Dispose(); } catch { }
         });
         var aboutBtn = Button(tr("Acerca de…", "About…", "バージョン情報…"), manager.OpenAbout);
         var close = Button(tr("Cerrar", "Close", "閉じる"), Close);

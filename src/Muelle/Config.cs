@@ -169,22 +169,39 @@ public sealed class DockConfig
 
     /// <summary>
     /// The settings are the user's: nothing here may put them back to the defaults. A setting this version cannot read
-    /// (a value a newer version added, a damaged entry) is dropped alone and the rest is kept; a file that cannot be
-    /// read at all is kept aside with the date, and the previous one is read instead. When another version of Muelle
-    /// reads the file for the first time (it was updated or went back), a copy is kept before anything is written.
+    /// (a value a newer version added, a damaged entry) is dropped alone and the rest is kept; in the lists of icons,
+    /// that is one icon (or one shortcut of a stack), never the whole list. Whatever was dropped is written to
+    /// config.dropped-&lt;date&gt;.json and the whole file is kept as config.partial-&lt;date&gt;.json, both before
+    /// anything is saved. A file that cannot be read at all is kept aside with the date, and the previous one is read
+    /// instead. When another version of Muelle reads the file for the first time (it was updated or went back), a copy
+    /// is kept before anything is written.
     /// </summary>
     public static DockConfig Load(out bool firstRun)
     {
         firstRun = false;
+        droppedOnLoad = previousKept = false;
         bool exists = File.Exists(FilePath);
         if (exists)
         {
-            var cfg = Read(FilePath);
+            var cfg = Read(FilePath, out var dropped);
+            string from = FilePath;
             if (cfg == null)
             {
                 Program.Log("Could not read the configuration: kept aside, and the previous one is read.");
                 Keep(FilePath, "config.unreadable-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".json");
-                if (File.Exists(PreviousPath)) cfg = Read(PreviousPath);
+                if (File.Exists(PreviousPath)) { cfg = Read(PreviousPath, out dropped); from = PreviousPath; }
+            }
+            if (cfg != null && dropped != null)
+            {
+                string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+                Keep(from, "config.partial-" + stamp + ".json");
+                try
+                {
+                    Directory.CreateDirectory(Folder);
+                    File.WriteAllText(Path.Combine(Folder, "config.dropped-" + stamp + ".json"), dropped.ToJsonString(Json));
+                }
+                catch (Exception ex) { Program.Log("Could not keep what was dropped from the configuration: " + ex.Message); }
+                droppedOnLoad = true;
             }
             if (cfg != null)
             {
@@ -202,27 +219,98 @@ public sealed class DockConfig
     }
 
     /// <summary>The settings of a file, without the ones that cannot be read; null if it is not a settings file.</summary>
-    private static DockConfig Read(string file)
+    private static DockConfig Read(string file) => Read(file, out _);
+
+    /// <summary>
+    /// The same; <paramref name="dropped"/> gets what could not be read (each piece as it was in the file), or null
+    /// when everything was read.
+    /// </summary>
+    internal static DockConfig Read(string file, out JsonArray dropped)
     {
+        dropped = null;
         string text;
         try { text = File.ReadAllText(file); } catch (Exception ex) { Program.Log("Could not read " + file + ": " + ex.Message); return null; }
         try { return JsonSerializer.Deserialize<DockConfig>(text, Json); }
         catch (Exception ex) { Program.Log("Part of the configuration could not be read: " + ex.Message); }
-        // One setting by itself, so a value that cannot be read drops that setting only.
+        // One setting by itself, so a value that cannot be read drops that setting only; the lists of icons, one icon
+        // by itself, so a damaged icon drops that icon only and not the whole dock.
         try
         {
             if (JsonNode.Parse(text) is not JsonObject all) return null;
+            var lost = new JsonArray();
             var kept = new JsonObject();
             foreach (var (name, value) in all.ToList())
             {
-                var one = new JsonObject { [name] = value?.DeepClone() };
-                try { JsonSerializer.Deserialize<DockConfig>(one.ToJsonString(), Json); kept[name] = value?.DeepClone(); }
-                catch { Program.Log("Setting dropped, it could not be read: " + name); }
+                if (Fits<DockConfig>(new JsonObject { [name] = value?.DeepClone() })) { kept[name] = value?.DeepClone(); continue; }
+                if (value is JsonArray list && name is nameof(Items) or nameof(MonitorDocks))
+                {
+                    var good = new JsonArray();
+                    foreach (var entry in list)
+                    {
+                        var one = name == nameof(Items) ? KeepItem(entry, lost) : KeepMonitor(entry, lost);
+                        if (one != null) good.Add(one);
+                    }
+                    kept[name] = good;
+                    continue;
+                }
+                Program.Log("Setting dropped, it could not be read: " + name);
+                lost.Add(new JsonObject { [name] = value?.DeepClone() });
             }
+            if (lost.Count > 0) dropped = lost;
             return JsonSerializer.Deserialize<DockConfig>(kept.ToJsonString(), Json);
         }
         catch { return null; }
     }
+
+    private static bool Fits<T>(JsonNode node)
+    {
+        try { JsonSerializer.Deserialize<T>(node?.ToJsonString() ?? "null", Json); return true; }
+        catch { return false; }
+    }
+
+    /// <summary>An icon that can be read, as it was; a stack without the shortcuts that cannot be read; else null (and it goes to <paramref name="lost"/>).</summary>
+    private static JsonNode KeepItem(JsonNode entry, JsonArray lost)
+    {
+        if (Fits<DockItemConfig>(entry)) return entry?.DeepClone();
+        if (entry is JsonObject o && o[nameof(DockItemConfig.Stack)] is JsonArray children)
+        {
+            var copy = (JsonObject)o.DeepClone();
+            var good = new JsonArray();
+            foreach (var c in children)
+            {
+                if (Fits<DockItemConfig>(c)) good.Add(c?.DeepClone());
+                else { Program.Log("Shortcut of a stack dropped, it could not be read."); lost.Add(c?.DeepClone()); }
+            }
+            copy[nameof(DockItemConfig.Stack)] = good;
+            if (Fits<DockItemConfig>(copy)) return copy;
+        }
+        Program.Log("Icon dropped, it could not be read.");
+        lost.Add(entry?.DeepClone());
+        return null;
+    }
+
+    /// <summary>The icons of a screen that can be read, as <see cref="KeepItem"/> does for each of its icons; else null.</summary>
+    private static JsonNode KeepMonitor(JsonNode entry, JsonArray lost)
+    {
+        if (Fits<MonitorDockConfig>(entry)) return entry?.DeepClone();
+        if (entry is JsonObject o && o[nameof(MonitorDockConfig.Items)] is JsonArray items)
+        {
+            var copy = (JsonObject)o.DeepClone();
+            var good = new JsonArray();
+            foreach (var i in items) if (KeepItem(i, lost) is JsonNode one) good.Add(one);
+            copy[nameof(MonitorDockConfig.Items)] = good;
+            if (Fits<MonitorDockConfig>(copy)) return copy;
+        }
+        Program.Log("The icons of a screen were dropped, they could not be read.");
+        lost.Add(entry?.DeepClone());
+        return null;
+    }
+
+    /// <summary>
+    /// Part of the file could not be read when it was loaded: the previous file then keeps the version that still had
+    /// it (the first save of the session puts the read file there, and no later save replaces it).
+    /// </summary>
+    private static bool droppedOnLoad, previousKept;
 
     /// <summary>A copy of a settings file next to it, if there is none of that name yet.</summary>
     private static void Keep(string file, string name)
@@ -242,9 +330,21 @@ public sealed class DockConfig
             Directory.CreateDirectory(Folder);
             SavedBy = RunningVersion;
             var tmp = FilePath + ".tmp";
-            File.WriteAllText(tmp, JsonSerializer.Serialize(this, Json));
-            // The file being replaced stays as the previous one, but only if it can be read (never a damaged one).
-            if (File.Exists(FilePath) && Read(FilePath) != null) File.Copy(FilePath, PreviousPath, true);
+            // Written through to the disk before it replaces the file: a power cut right after leaves the new file
+            // or the old one, never one that exists but is empty.
+            using (var fs = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.WriteThrough))
+            {
+                var bytes = new System.Text.UTF8Encoding(false).GetBytes(JsonSerializer.Serialize(this, Json));
+                fs.Write(bytes, 0, bytes.Length);
+                fs.Flush(true);
+            }
+            // The file being replaced stays as the previous one, but only if it can be read (never a damaged one), and
+            // never a file this session wrote without the part it could not read (see droppedOnLoad).
+            if (File.Exists(FilePath) && !(droppedOnLoad && previousKept) && Read(FilePath) != null)
+            {
+                File.Copy(FilePath, PreviousPath, true);
+                previousKept = true;
+            }
             File.Move(tmp, FilePath, true);
         }
         catch (Exception ex) { Program.Log("Could not save the configuration: " + ex.Message); }

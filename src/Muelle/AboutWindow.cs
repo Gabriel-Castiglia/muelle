@@ -159,6 +159,6 @@ internal sealed class AboutWindow : Window
 
     private static void Open(string target)
     {
-        try { Process.Start(new ProcessStartInfo(target) { UseShellExecute = true }); } catch { }
+        try { Process.Start(new ProcessStartInfo(target) { UseShellExecute = true })?.Dispose(); } catch { }
     }
 }

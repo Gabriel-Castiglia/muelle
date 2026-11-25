@@ -107,7 +107,9 @@ internal sealed class DockWindow : Window
             e.Cancel = true;
             Dispatcher.BeginInvoke(new Action(Manager.Exit));
         };
-        Closed += (s, e) => { fullscreenTimer.Stop(); RemoveAppBar(); };
+        // Every timer stops and the handle is forgotten: a reposition pending on a closed dock (when another dock
+        // releases its strip, Windows tells every dock) would register a strip again for a window that is gone.
+        Closed += (s, e) => { fullscreenTimer.Stop(); repositionTimer.Stop(); RemoveAppBar(); hwnd = IntPtr.Zero; };
     }
 
     // ---------------- Window / AppBar ----------------
@@ -187,6 +189,7 @@ internal sealed class DockWindow : Window
         }
         else if (msg == Native.WM_DISPLAYCHANGE || msg == Native.WM_DPICHANGED)
         {
+            Monitors.Forget();
             ScheduleReposition();
             if (msg == Native.WM_DISPLAYCHANGE) Manager.ScheduleRebuild();
         }
@@ -405,7 +408,7 @@ internal sealed class DockWindow : Window
                 if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir)) psi.WorkingDirectory = dir;
             }
             if (asAdmin) psi.Verb = "runas";
-            Process.Start(psi);
+            Process.Start(psi)?.Dispose();   // the app runs by itself: its handle is not kept
             View.StartBounce(bounce ?? it);
         }
         catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
@@ -444,7 +447,7 @@ internal sealed class DockWindow : Window
         {
             string key = WindowTracker.Normalize(it.ExePath);
             WindowTracker.Snapshot().TryGetValue(key, out var wins);
-            return WindowTracker.ProcessesFor(key, wins ?? new List<IntPtr>()).Count > 0;
+            return WindowTracker.AnyProcessFor(key, wins ?? new List<IntPtr>());
         }
         catch { return false; }
     }
@@ -644,6 +647,9 @@ internal sealed class DockWindow : Window
     {
         string name = RenameWindow.Ask(this, item.Name);
         if (name == null) return;
+        // Accepting the name as it was changes nothing: an automatic name (a default app's) stays automatic, so it
+        // still follows the interface language.
+        if (name.Trim() == item.Name) return;
         item.Cfg.Name = name.Trim();
         Manager.SaveItems(Items);
         Manager.KickAll();
@@ -662,7 +668,7 @@ internal sealed class DockWindow : Window
         try
         {
             string p = it.Cfg.Path;
-            if (File.Exists(p) || Directory.Exists(p)) Process.Start("explorer.exe", "/select,\"" + p + "\"");
+            if (File.Exists(p) || Directory.Exists(p)) Process.Start("explorer.exe", "/select,\"" + p + "\"")?.Dispose();
         }
         catch { }
     }

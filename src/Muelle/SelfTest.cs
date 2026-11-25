@@ -139,6 +139,30 @@ internal static class SelfTest
         rescued.Save();
         Check("a damaged file never becomes the previous one", DockConfig.Load(out _).IconSize == 44 && File.ReadAllText(DockConfig.PreviousPath).Contains("\"AutoHide\": true"));
         foreach (var f in Directory.GetFiles(DockConfig.Folder, "config*.json")) File.Delete(f);
+
+        // One icon that cannot be read (a field of another type) drops that icon only, never the whole dock; what was
+        // dropped is kept, and no save of the session makes the previous file lose it.
+        File.WriteAllText(DockConfig.FilePath, """
+            { "IconSize": 48, "Items": [
+                { "Name": "Notes", "Path": "C:\\Windows\\notepad.exe" },
+                { "Name": "Broken", "Path": 123 },
+                { "Name": "Box", "Stack": [ { "Name": "Calc", "Path": "C:\\Windows\\System32\\calc.exe" }, { "Name": "Bad", "Path": [] } ] }
+              ] }
+            """);
+        var partial = DockConfig.Load(out firstRun);
+        Check("an icon that cannot be read drops that icon only",
+              !firstRun && partial.IconSize == 48 && partial.Items.Count == 2 && partial.Items[0].Name == "Notes"
+              && partial.Items[1].IsStack && partial.Items[1].Stack.Count == 1 && partial.Items[1].Stack[0].Name == "Calc");
+        Check("what was dropped is kept, with a copy of the whole file",
+              Directory.GetFiles(DockConfig.Folder, "config.dropped-*.json").Length == 1
+              && File.ReadAllText(Directory.GetFiles(DockConfig.Folder, "config.dropped-*.json")[0]).Contains("Broken")
+              && Directory.GetFiles(DockConfig.Folder, "config.partial-*.json").Length == 1);
+        partial.Save();
+        partial.IconSize = 50;
+        partial.Save();
+        Check("no save of the session makes the previous file lose the icon that could not be read",
+              File.ReadAllText(DockConfig.PreviousPath).Contains("Broken"));
+        foreach (var f in Directory.GetFiles(DockConfig.Folder, "config*.json")) File.Delete(f);
     }
 
     // ---------------- Screens ----------------

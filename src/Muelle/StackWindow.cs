@@ -149,6 +149,17 @@ internal sealed class StackWindow : Window
     {
         if (string.IsNullOrWhiteSpace(Stack.Name)) Stack.Name = tr("Pila", "Stack", "スタック");
         Stack.Name = Stack.Name.Trim();
+        // While it was being edited the stack left the dock (it was unpinned), or its dock is no longer shown (each
+        // screen with its own icons was turned off): saving would bring the stack back, or put it where it is not seen.
+        if ((old != null && !list.Contains(old)) || !manager.IsShown(list))
+        {
+            MessageBox.Show(this, tr("La pila ya no está en el dock (se quitó o cambió la lista de iconos mientras la editabas): no se guardó.",
+                                     "The stack is no longer in the dock (it was removed, or the list of icons changed while you edited it): it was not saved.",
+                                     "スタックはもうドックにありません (編集中に削除されたか、アイコンの一覧が変わりました)。保存しませんでした。"),
+                            "Muelle", MessageBoxButton.OK, MessageBoxImage.Information);
+            Close();
+            return;
+        }
         manager.PutStack(list, Stack.Clone(), old, index);
         Close();
     }

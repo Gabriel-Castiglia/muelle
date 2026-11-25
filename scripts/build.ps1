@@ -50,9 +50,9 @@ if ($LASTEXITCODE) { throw 'Setup .exe build failed.' }
 # 4) The stand-alone executable and its license, next to the installers.
 Copy-Item (Join-Path $publish 'Muelle.exe'), (Join-Path $publish 'LICENSE.txt') $dist
 
-# 5) The hashes that go with the release, in the format of sha256sum (LF line ends).
-$sums = foreach ($name in 'muelle-setup.exe', 'muelle.msi', 'Muelle.exe') {
+# 5) The hashes, in the format of sha256sum. They are only shown: no hash file is written to disk; the release
+#    asset SHA256SUMS.txt is built from them in memory when the release is published.
+foreach ($name in 'muelle-setup.exe', 'muelle.msi', 'Muelle.exe') {
     (Get-FileHash (Join-Path $dist $name) -Algorithm SHA256).Hash.ToLowerInvariant() + '  ' + $name
 }
-[IO.File]::WriteAllText((Join-Path $dist 'SHA256SUMS.txt'), ($sums -join "`n") + "`n")
 Get-ChildItem $dist -Include *.exe, *.msi, *.txt -Recurse | Select-Object Name, Length

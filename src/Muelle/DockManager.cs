@@ -103,19 +103,37 @@ internal sealed class DockManager
         updateTimer.Tick += async (s, e) =>
         {
             updateTimer.Interval = TimeSpan.FromHours(1);
-            if (IsScreenshot || !Config.CheckUpdates || DateTime.UtcNow - Config.LastUpdateCheck < TimeSpan.FromHours(24)) return;
-            Config.LastUpdateCheck = DateTime.UtcNow;   // even if it fails (no network): at most one try a day
-            SaveConfig();
-            if (!exiting) await Updates.CheckAsync(this, interactive: false);
+            if (IsScreenshot || exiting || checkingUpdates || !Config.CheckUpdates || DateTime.UtcNow - Config.LastUpdateCheck < TimeSpan.FromHours(24)) return;
+            checkingUpdates = true;
+            try { await Updates.CheckAsync(this, interactive: false); }
+            finally { checkingUpdates = false; }
+            // Only a check that reached GitHub counts for the day: without network yet (a laptop just started) it is
+            // tried again the next hour, instead of the day being lost.
+            if (Updates.LastCheckReached && !exiting)
+            {
+                Config.LastUpdateCheck = DateTime.UtcNow;
+                SaveConfig();
+            }
         };
         updateTimer.Start();
         iconTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(15) };
-        iconTimer.Tick += (s, e) => { if (!exiting) RefreshIcons(); };
+        iconTimer.Tick += async (s, e) =>
+        {
+            if (exiting || refreshingIcons) return;
+            refreshingIcons = true;
+            try { await RefreshIconsAsync(); }
+            catch (Exception ex) { Program.Log("Could not refresh the icons: " + ex.Message); }
+            finally { refreshingIcons = false; }
+        };
         iconTimer.Start();
     }
 
+    private bool refreshingIcons;
+    private DateTime lastClickOnceCheck = DateTime.UtcNow;
+
     private DispatcherTimer updateTimer;
     private DispatcherTimer iconTimer;
+    private bool checkingUpdates;
 
     /// <summary>
     /// An app that was updated (also Store apps), that changed the colour of its icon (Vigía), or whose shortcut or
@@ -123,6 +141,57 @@ internal sealed class DockManager
     /// from are compared (a few file dates, no icon is read unless one changed). Returns how many icons were read again.
     /// </summary>
     public int RefreshIcons()
+    {
+        var sigs = new Dictionary<DockItem, string>();
+        foreach (var it in IconItems()) sigs[it] = it.CurrentIconSig();
+        return ApplyIcons(sigs);
+    }
+
+    /// <summary>
+    /// The same, with the file dates read off the window's thread: a dock item on a network folder that does not
+    /// answer, or the walk of the shortcut folders, never freezes the dock. Every 5 minutes it also asks again where a
+    /// ClickOnce app (.appref-ms) is installed, since each of its updates installs it in a new folder.
+    /// </summary>
+    public async Task<int> RefreshIconsAsync()
+    {
+        var items = IconItems().Select(it => (Item: it, it.Cfg.Path, it.Cfg.Icon, it.ExePath)).ToList();
+        bool clickOnce = DateTime.UtcNow - lastClickOnceCheck > TimeSpan.FromMinutes(5);
+        if (clickOnce) lastClickOnceCheck = DateTime.UtcNow;
+        var read = await Task.Run(() => items.Select(x =>
+        {
+            string exe = x.ExePath;
+            if (clickOnce && x.Path != null && x.Path.EndsWith(".appref-ms", StringComparison.OrdinalIgnoreCase)) exe = Shell.ResolveTarget(x.Path);
+            return (x.Item, Exe: exe, Sig: Shell.IconSignature(x.Path, x.Icon, exe));
+        }).ToList());
+        if (exiting) return 0;
+        var sigs = new Dictionary<DockItem, string>();
+        foreach (var r in read)
+        {
+            // Moved to another folder: its windows are recognized by the new executable, and its icon read again.
+            if (!string.Equals(r.Exe, r.Item.ExePath, StringComparison.OrdinalIgnoreCase)) { r.Item.ExePath = r.Exe; r.Item.IconSig = null; }
+            sigs[r.Item] = r.Sig;
+        }
+        int n = ApplyIcons(sigs);
+        if (clickOnce) RefreshRunning();
+        return n;
+    }
+
+    /// <summary>Every icon that is read from a file: the ordinary icons of every list and the shortcuts of their stacks.</summary>
+    private List<DockItem> IconItems()
+    {
+        var all = new List<DockItem>();
+        void Add(IEnumerable<DockItem> items)
+        {
+            foreach (var it in items)
+                if (it.Children != null) Add(it.Children); else all.Add(it);
+        }
+        Add(Items.ToList());
+        foreach (var list in monitorLists.Values) Add(list.ToList());
+        return all;
+    }
+
+    /// <summary>Reads again the icons whose signature changed (items that left the dock meanwhile are skipped).</summary>
+    private int ApplyIcons(Dictionary<DockItem, string> sigs)
     {
         int n = 0;
         bool Walk(IEnumerable<DockItem> items)
@@ -135,9 +204,9 @@ internal sealed class DockManager
                     if (Walk(it.Children) && string.IsNullOrWhiteSpace(it.Cfg.Icon)) it.Icon = DockItem.StackIcon(it.Children.Select(c => c.Icon));
                     continue;
                 }
-                if (it.CurrentIconSig() == it.IconSig) continue;
+                if (!sigs.TryGetValue(it, out var sig) || sig == it.IconSig) continue;
                 var fresh = DockItem.From(it.Cfg);
-                it.Icon = fresh.Icon; it.IconSig = fresh.IconSig;
+                it.Icon = fresh.Icon; it.IconSig = fresh.IconSig; it.ExePath = fresh.ExePath;
                 n++; any = true;
             }
             return any;
@@ -362,9 +431,17 @@ internal sealed class DockManager
         {
             var dock = monitorLists.FirstOrDefault(p => p.Value == list).Key;
             if (dock != null) dock.Items = stored;
+            else { Program.Log("A list of icons that belongs to no dock was not saved."); return; }
         }
         SaveConfig();
     }
+
+    /// <summary>
+    /// Whether a list of icons is one the docks use with the current option: a screen's own list when each screen has
+    /// its own icons, the shared one otherwise. With no dock open (the self-test) every list is.
+    /// </summary>
+    public bool IsShown(List<DockItem> list) =>
+        windows.Count == 0 || (Config.PerMonitor ? monitorLists.ContainsValue(list) : list == Items);
 
     /// <summary>Number of pinned apps (they are at the start of <see cref="Items"/>).</summary>
     public int PinnedCount => PinnedCountOf(Items);

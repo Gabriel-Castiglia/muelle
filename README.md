@@ -112,7 +112,9 @@ front if it is already open. "Edit stack…" at the end of the list opens the st
 - "New stack…" in the dock menu, or in Settings → Dock applications, creates one.
 - In the editor: the name of the stack; its icon, either one of its own ("Choose icon…": an `.ico`, a
   program or a picture) or "Automatic icon", its first four shortcuts in a grid; and its shortcuts, with
-  Add…, Remove, Move up and Move down. Nothing changes in the dock until "Save".
+  Add…, Remove, Move up and Move down. Nothing changes in the dock until "Save". If the stack left the dock
+  while it was being edited (it was removed, or "Each screen with its own icons" was switched), "Save" says so
+  and changes nothing.
 - "Move to stack" in the menu of an icon puts that icon at the end of a stack.
 - A stack is moved and removed like any other icon. An open app that is in a stack does not appear again
   at the end of the dock.
@@ -195,9 +197,10 @@ Calculator…) follow the interface language.
 | What | Where |
 |---|---|
 | Installed program | `C:\Program Files\Muelle`, with `LICENSE.txt`, `README.txt` and `README.es.txt` |
-| Settings | `%APPDATA%\Muelle\config.json` (it can be deleted to start over) |
+| Settings | `%APPDATA%\Muelle\config.json` (it can be deleted to start over); the version before the last save in `config.previous.json` |
+| Settings that could not be read | An icon or setting this version cannot read is dropped alone, never the whole list: what was dropped goes to `config.dropped-<date>.json` and the whole file as it was to `config.partial-<date>.json` |
 | Error log, if anything fails | `%APPDATA%\Muelle\muelle.log`, kept under 512 KB (the previous part in `muelle.old.log`) |
-| Update being installed | `%TEMP%\MuelleUpdate` (the setup and how Muelle was started) |
+| Update being installed | `%TEMP%\MuelleUpdate` (the setup and how Muelle was started); deleted a minute after the update installed |
 
 ## Known limitations
 
@@ -215,7 +218,7 @@ powershell -ExecutionPolicy Bypass -File scripts\build.ps1
 ```
 
 The first command builds the program. The second builds everything in `dist`: the stand-alone
-`Muelle.exe`, `muelle.msi`, `muelle-setup.exe` and `SHA256SUMS.txt`; the WiX Toolset 5 is restored
+`Muelle.exe`, `muelle.msi` and `muelle-setup.exe`, and prints their SHA-256 hashes; the WiX Toolset 5 is restored
 automatically as a NuGet package. A release must carry `muelle-setup.exe` and `SHA256SUMS.txt` with these
 names, since the updates look for them.
 

@@ -205,7 +205,7 @@ internal static class Shell
     private static extern int GetPackagePathByFullName(string fullName, ref uint length, StringBuilder path);
 
     /// <summary>Install folder of a package family (e.g. "Microsoft.WindowsCalculator_8wekyb3d8bbwe"), or null.</summary>
-    private static string PackageFolder(string family)
+    internal static string PackageFolder(string family)
     {
         uint count = 0, length = 0;
         if (GetPackagesByPackageFamily(family, ref count, null, ref length, null) != 122 /* ERROR_INSUFFICIENT_BUFFER */ || count == 0)
@@ -359,9 +359,14 @@ internal static class Shell
     private static readonly Dictionary<string, (DateTime Written, string Target, string Icon)> linkCache = new(StringComparer.OrdinalIgnoreCase);
     private static Dictionary<string, string> themedIcons;
     private static DateTime themedIconsAt;
+    /// <summary>The icon dates are compared off the window's thread (DockManager.RefreshIconsAsync): one reader at a time.</summary>
+    private static readonly object themedLock = new();
+    /// <summary>A shortcut of the folders was created, changed, renamed or deleted since they were last read.</summary>
+    private static volatile bool themedDirty;
+    private static List<FileSystemWatcher> themedWatchers;
 
     /// <summary>Forgets what was read, so the next question reads the folders again (the self-test).</summary>
-    internal static void ForgetThemedIcons() { themedIcons = null; linkCache.Clear(); }
+    internal static void ForgetThemedIcons() { lock (themedLock) { themedIcons = null; linkCache.Clear(); } }
 
     /// <summary>The icon file the program's own shortcuts show, from the program's folder; null if there is none.</summary>
     public static string ThemedIconPath(string exe)
@@ -371,12 +376,50 @@ internal static class Shell
     }
 
     /// <summary>
-    /// Program → icon, from every shortcut of the folders. Read again at most every 5 s, and a shortcut only when its
-    /// date changed. When several shortcuts of one program name different icons, the newest file wins.
+    /// Windows tells when a shortcut of the folders changes, so they are not walked again until one does (the walk
+    /// opens every shortcut: hundreds on a typical machine). Every 5 minutes they are walked anyway, for a change
+    /// the watchers missed (a folder created later, a network folder). The self-test's own folders are not watched.
+    /// </summary>
+    private static void WatchShortcutFolders()
+    {
+        if (themedWatchers != null || ShortcutFoldersOverride != null) return;
+        themedWatchers = new List<FileSystemWatcher>();
+        foreach (var folder in ShortcutFolders().Where(f => !string.IsNullOrEmpty(f) && Directory.Exists(f)))
+        {
+            try
+            {
+                var w = new FileSystemWatcher(folder, "*.lnk")
+                {
+                    IncludeSubdirectories = true,
+                    NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastWrite | NotifyFilters.CreationTime,
+                };
+                FileSystemEventHandler dirty = (s, e) => themedDirty = true;
+                w.Created += dirty; w.Changed += dirty; w.Deleted += dirty;
+                w.Renamed += (s, e) => themedDirty = true;
+                w.Error += (s, e) => themedDirty = true;   // too many changes at once: walk them all again
+                w.EnableRaisingEvents = true;
+                themedWatchers.Add(w);
+            }
+            catch (Exception ex) { Program.Log("Could not watch " + folder + ": " + ex.Message); }
+        }
+    }
+
+    /// <summary>
+    /// Program → icon, from every shortcut of the folders. Read again only when a shortcut changed (or every 5 minutes;
+    /// every 5 s for folders that are not watched), and a shortcut only when its date changed. When several shortcuts
+    /// of one program name different icons, the newest file wins.
     /// </summary>
     private static Dictionary<string, string> ThemedIcons()
     {
-        if (themedIcons != null && DateTime.UtcNow - themedIconsAt < TimeSpan.FromSeconds(5)) return themedIcons;
+        lock (themedLock) return ThemedIconsLocked();
+    }
+
+    private static Dictionary<string, string> ThemedIconsLocked()
+    {
+        WatchShortcutFolders();
+        var maxAge = themedWatchers is { Count: > 0 } ? TimeSpan.FromMinutes(5) : TimeSpan.FromSeconds(5);
+        if (themedIcons != null && !themedDirty && DateTime.UtcNow - themedIconsAt < maxAge) return themedIcons;
+        themedDirty = false;   // before the walk: a change during it is seen by the next one
         var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var folder in ShortcutFolders().Where(f => !string.IsNullOrEmpty(f) && Directory.Exists(f)))
@@ -577,8 +620,29 @@ internal static class Monitors
         return "";
     }
 
-    /// <summary>All monitors, ordered left to right.</summary>
+    private static List<MonitorInfo> cached;
+    private static DateTime cachedAt;
+
+    /// <summary>
+    /// Forgets the screens read before (a screen was connected or disconnected, or its resolution or scale changed:
+    /// WM_DISPLAYCHANGE, WM_DPICHANGED), so the next question reads them again.
+    /// </summary>
+    public static void Forget() => cached = null;
+
+    /// <summary>
+    /// All monitors, ordered left to right. Asked every second by each dock and on every change of the window in front,
+    /// so the answer is kept until Windows says the screens changed (<see cref="Forget"/>), or for 30 s at most.
+    /// </summary>
     public static List<MonitorInfo> All()
+    {
+        if (cached != null && DateTime.UtcNow - cachedAt < TimeSpan.FromSeconds(30)) return new List<MonitorInfo>(cached);
+        var list = ReadAll();
+        cached = list;
+        cachedAt = DateTime.UtcNow;
+        return new List<MonitorInfo>(list);
+    }
+
+    private static List<MonitorInfo> ReadAll()
     {
         var list = new List<MonitorInfo>();
         Native.EnumDisplayMonitors(IntPtr.Zero, IntPtr.Zero, (IntPtr h, IntPtr hdc, ref Native.RECT r, IntPtr d) =>
@@ -735,20 +799,71 @@ internal static class WindowTracker
         if (key.StartsWith(AumidPrefix, StringComparison.Ordinal))
         {
             string aumid = key.Substring(AumidPrefix.Length);
+            // Only the processes named as an executable of the package are asked for their AUMID (asking means
+            // opening each process: hundreds of them); all of them if the package's folder cannot be read.
+            var names = PackageExeNames(aumid);
             foreach (var p in System.Diagnostics.Process.GetProcesses())
             {
                 using (p)
+                {
+                    if (names != null && !names.Contains(p.ProcessName)) continue;
                     if (string.Equals(ProcessAumid((uint)p.Id), aumid, StringComparison.OrdinalIgnoreCase)) pids.Add((uint)p.Id);
+                }
             }
         }
-        uint self = (uint)Environment.ProcessId;
-        return pids.Where(pid =>
+        return pids.Where(Killable).ToList();
+    }
+
+    /// <summary>
+    /// True if "End task" would terminate something. The owners of the app's windows are asked first, which is
+    /// enough nearly always; the processes of a package are looked through only when they are not.
+    /// </summary>
+    public static bool AnyProcessFor(string key, IEnumerable<IntPtr> windows)
+    {
+        foreach (var h in windows)
         {
-            if (pid == self) return false;
-            string name = System.IO.Path.GetFileName(Native.ProcessImagePath(pid) ?? "");
-            return !name.Equals("explorer.exe", StringComparison.OrdinalIgnoreCase)
-                && !name.Equals("ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase);
-        }).ToList();
+            Native.GetWindowThreadProcessId(h, out uint pid);
+            if (pid != 0 && Killable(pid)) return true;
+        }
+        return key.StartsWith(AumidPrefix, StringComparison.Ordinal) && ProcessesFor(key, Array.Empty<IntPtr>()).Count > 0;
+    }
+
+    /// <summary>Not Muelle itself, nor Explorer or the UWP app host (ApplicationFrameHost), which are shared.</summary>
+    private static bool Killable(uint pid)
+    {
+        if (pid == (uint)Environment.ProcessId) return false;
+        string name = System.IO.Path.GetFileName(Native.ProcessImagePath(pid) ?? "");
+        return !name.Equals("explorer.exe", StringComparison.OrdinalIgnoreCase)
+            && !name.Equals("ApplicationFrameHost.exe", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static readonly Dictionary<string, HashSet<string>> packageExes = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The names (without ".exe") of the executables in the install folder of an app's package, or null if it cannot
+    /// be read. Kept per folder: an update of the package installs it in a new folder, which is read again.
+    /// </summary>
+    private static HashSet<string> PackageExeNames(string aumid)
+    {
+        int bang = aumid.IndexOf('!');
+        if (bang <= 0) return null;
+        string folder;
+        try { folder = Shell.PackageFolder(aumid.Substring(0, bang)); } catch { return null; }
+        if (string.IsNullOrEmpty(folder)) return null;
+        lock (packageExes)
+        {
+            if (packageExes.TryGetValue(folder, out var known)) return known;
+            HashSet<string> names = null;
+            try
+            {
+                names = Directory.EnumerateFiles(folder, "*.exe", SearchOption.AllDirectories)
+                    .Select(System.IO.Path.GetFileNameWithoutExtension).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                if (names.Count == 0) names = null;
+            }
+            catch { names = null; }
+            packageExes[folder] = names;
+            return names;
+        }
     }
 
     /// <summary>Keys a window can match an icon by: its executable and its AUMID(s).</summary>
