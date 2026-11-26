@@ -21,6 +21,8 @@ English · [Español](CHANGELOG.es.md) · [日本語](CHANGELOG.ja.md)
 
 ### Changed
 
+- When setup closes a running Muelle to update it, it opens it again when done (also with `/quiet`), as the
+  signed-in user even if setup was run as administrator; before, only an update started from Muelle did so.
 - The PDF manuals use Muelle's own light colours and its blue accent, with a larger icon on the cover.
 - The version history is also in Spanish and Japanese (`CHANGELOG.es.md`, `CHANGELOG.ja.md`).
 - The READMEs mention `Muelle.exe --settings` and everything the self-test checks; the Spanish texts write "icono"

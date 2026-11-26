@@ -58,6 +58,8 @@ internal sealed class SetupApplication : BootstrapperApplication
     private int waitPid;
     /// <summary>/muellerelaunch=1: start Muelle again when done.</summary>
     private bool relaunch, relaunched;
+    /// <summary>The setup closed a Muelle of this session (see CloseRunningMuelle): open it again when done.</summary>
+    private bool reopen;
 
     protected override void OnCreate(CreateEventArgs args)
     {
@@ -141,20 +143,50 @@ internal sealed class SetupApplication : BootstrapperApplication
         catch (Exception ex) { engine.Log(LogLevel.Standard, "Muelle setup: could not wait for Muelle: " + ex.Message); }
     }
 
-    /// <summary>Starts the installed Muelle again after an update it asked for, saying how it went.</summary>
+    /// <summary>
+    /// Starts the installed Muelle again when the setup is done: after an update Muelle asked for (saying how it
+    /// went), or when the setup itself closed a running Muelle to install over it. Never after an uninstall.
+    /// </summary>
     private void RelaunchMuelle(int status)
     {
-        if (!relaunch || relaunched) return;
+        if (relaunched || !(relaunch || (reopen && Planned != LaunchAction.Uninstall))) return;
         relaunched = true;
         try
         {
             string exe = Path.Combine(InstallFolder, "Muelle.exe");
             if (!File.Exists(exe)) { engine.Log(LogLevel.Standard, "Muelle setup: no Muelle.exe to start again."); return; }
-            string arg = status >= 0 ? "--updated" : "--update-failed=0x" + status.ToString("X8");
-            Process.Start(new ProcessStartInfo(exe, arg) { UseShellExecute = false, WorkingDirectory = InstallFolder });
-            engine.Log(LogLevel.Standard, "Muelle setup: started Muelle again (" + arg + ").");
+            if (relaunch)
+            {
+                string arg = status >= 0 ? "--updated" : "--update-failed=0x" + status.ToString("X8");
+                Process.Start(new ProcessStartInfo(exe, arg) { UseShellExecute = false, WorkingDirectory = InstallFolder });
+                engine.Log(LogLevel.Standard, "Muelle setup: started Muelle again (" + arg + ").");
+            }
+            else if (IsElevated())
+            {
+                // A setup run as administrator would start the dock as administrator too, which then cannot take
+                // files dragged from Explorer. Explorer starts it as the signed-in user instead.
+                string explorer = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
+                Process.Start(new ProcessStartInfo(explorer, "\"" + exe + "\"") { UseShellExecute = false });
+                engine.Log(LogLevel.Standard, "Muelle setup: started Muelle again through Explorer.");
+            }
+            else
+            {
+                Process.Start(new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = InstallFolder });
+                engine.Log(LogLevel.Standard, "Muelle setup: started Muelle again.");
+            }
         }
         catch (Exception ex) { engine.Log(LogLevel.Standard, "Muelle setup: could not start Muelle again: " + ex.Message); }
+    }
+
+    /// <summary>Whether this setup runs as administrator (started with "Run as administrator").</summary>
+    private static bool IsElevated()
+    {
+        try
+        {
+            using var id = System.Security.Principal.WindowsIdentity.GetCurrent();
+            return new System.Security.Principal.WindowsPrincipal(id).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        }
+        catch { return false; }
     }
 
     // ---------------- Detect ----------------
@@ -221,12 +253,14 @@ internal sealed class SetupApplication : BootstrapperApplication
     /// Closes the Muelle of this user that runs from the install folder, before its files are replaced or
     /// removed. The MSI also closes it (util:CloseApplication), but only after removing files, which on an
     /// uninstall would leave the executable in use until a restart. Muelle quits when one of its windows
-    /// is asked to close; a version that does not do so is ended after a few seconds.
+    /// is asked to close; a version that does not do so is ended after a few seconds. One that ran in this
+    /// session is opened again when the setup is done (RelaunchMuelle).
     /// </summary>
     private void CloseRunningMuelle()
     {
         string folder;
         try { folder = Path.GetFullPath(InstallFolder).TrimEnd('\\') + "\\"; } catch { return; }
+        int session = Process.GetCurrentProcess().SessionId;
         foreach (var p in Process.GetProcessesByName("Muelle"))
         {
             using (p)
@@ -235,6 +269,7 @@ internal sealed class SetupApplication : BootstrapperApplication
                 {
                     string exe = p.MainModule?.FileName;
                     if (exe == null || !exe.StartsWith(folder, StringComparison.OrdinalIgnoreCase)) continue;
+                    if (p.SessionId == session) reopen = true;
                     EnumWindows((h, l) =>
                     {
                         GetWindowThreadProcessId(h, out uint pid);

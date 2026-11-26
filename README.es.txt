@@ -49,9 +49,9 @@ empezar), y lo agrega al menú Inicio. El idioma elegido en esa ventana es el qu
 primera vez que arranca.
 
 Correr un muelle-setup.exe más nuevo actualiza el Muelle instalado y conserva la configuración de
-cada usuario. Si Muelle está abierto, el instalador lo cierra antes de reemplazar sus archivos. Una
-versión vieja no se puede instalar encima de una más nueva. El Muelle instalado también se puede
-actualizar solo: ver Versiones nuevas (#versiones-nuevas).
+cada usuario. Si Muelle está abierto, el instalador lo cierra antes de reemplazar sus archivos y lo
+vuelve a abrir al terminar. Una versión vieja no se puede instalar encima de una más nueva. El
+Muelle instalado también se puede actualizar solo: ver Versiones nuevas (#versiones-nuevas).
 
 Para instalar sin ventanas: muelle-setup.exe /quiet (Windows igual pide permiso de administrador).
 

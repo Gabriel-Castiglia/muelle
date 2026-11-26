@@ -23,6 +23,9 @@ mayor.menor.parche.
 
 ### Cambiado
 
+- Cuando el instalador cierra un Muelle abierto para actualizarlo, lo vuelve a abrir al terminar (también con
+  `/quiet`), como el usuario de la sesión aunque el instalador se haya ejecutado como administrador; antes solo lo
+  hacía una actualización iniciada desde Muelle.
 - Los manuales en PDF usan los colores claros de Muelle y su acento azul, con un icono más grande en la portada.
 - El historial de versiones también está en castellano y en japonés (`CHANGELOG.es.md`, `CHANGELOG.ja.md`).
 - Los README mencionan `Muelle.exe --settings` y todo lo que revisa la autoprueba; los textos en castellano escriben

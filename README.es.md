@@ -50,9 +50,9 @@ ventana es el que usa el dock la primera vez que arranca.
 ![La ventana de instalación](docs/images/setup-install-es.png)
 
 Correr un `muelle-setup.exe` más nuevo actualiza el Muelle instalado y conserva la configuración de cada
-usuario. Si Muelle está abierto, el instalador lo cierra antes de reemplazar sus archivos. Una versión
-vieja no se puede instalar encima de una más nueva. El Muelle instalado también se puede actualizar solo:
-ver [Versiones nuevas](#versiones-nuevas).
+usuario. Si Muelle está abierto, el instalador lo cierra antes de reemplazar sus archivos y lo vuelve a abrir al
+terminar. Una versión vieja no se puede instalar encima de una más nueva.
+El Muelle instalado también se puede actualizar solo: ver [Versiones nuevas](#versiones-nuevas).
 
 Para instalar sin ventanas: `muelle-setup.exe /quiet` (Windows igual pide permiso de administrador).
 

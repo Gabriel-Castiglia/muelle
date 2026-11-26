@@ -51,8 +51,8 @@ time.
 ![The setup window](docs/images/setup-install-en.png)
 
 Running a newer `muelle-setup.exe` updates an installed Muelle and keeps each user's settings. If
-Muelle is running, setup closes it before replacing its files. An older version cannot be installed
-over a newer one. An installed Muelle can also update itself: see [New versions](#new-versions).
+Muelle is running, setup closes it before replacing its files and opens it again when done. An older
+version cannot be installed over a newer one. An installed Muelle can also update itself: see [New versions](#new-versions).
 
 For an installation without windows: `muelle-setup.exe /quiet` (Windows still asks for administrator rights).
 
