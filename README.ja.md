@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/dock-ja.png" width="720" alt="画面下端のドック"></p>
 
-Gabriel Castiglia · 2026 年 11 月 26 日 · バージョン 2.5.1 · GPL-2.0-only
+Gabriel Castiglia · 2026 年 11 月 27 日 · バージョン 2.5.2 · GPL-2.0-only
 
 [English](README.md) · [Español](README.es.md) · 日本語
 

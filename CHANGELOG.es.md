@@ -5,6 +5,16 @@ mayor.menor.parche.
 
 [English](CHANGELOG.md) · Español · [日本語](CHANGELOG.ja.md)
 
+## 2.5.2 - 2026-11-27
+
+### Corregido
+
+- **El instalador vuelve a abrir Muelle cuando lo cerró para instalar encima**: correr `muelle-setup.exe` a mano con
+  el dock abierto lo dejaba cerrado al terminar. Ahora un Muelle de la misma sesión que el instalador cerró vuelve
+  cuando el instalador termina (nunca después de desinstalar). Un instalador abierto como administrador lo arranca por
+  medio del Explorador, así el dock no corre como administrador y sigue aceptando archivos arrastrados desde el
+  Explorador.
+
 ## 2.5.1 - 2026-11-26
 
 ### Corregido

@@ -4,6 +4,15 @@ All notable changes to Muelle. Versions follow [semantic versioning](https://sem
 
 English · [Español](CHANGELOG.es.md) · [日本語](CHANGELOG.ja.md)
 
+## 2.5.2 - 2026-11-27
+
+### Fixed
+
+- **The setup opens Muelle again when it closed it to install over it**: running `muelle-setup.exe` by hand while the
+  dock was open left the dock closed afterwards. Now a Muelle of the same session that the setup closed comes back
+  when the setup is done (never after an uninstall). A setup run as administrator starts it through Explorer, so the
+  dock does not run as administrator and still takes files dragged from Explorer.
+
 ## 2.5.1 - 2026-11-26
 
 ### Fixed
