@@ -5,9 +5,9 @@
 
 <p align="center"><img src="docs/images/dock-en.png" width="720" alt="The dock at the bottom of the screen"></p>
 
-Gabriel Castiglia · November 25, 2026 · version 2.4.2 · GPL-2.0-only
+Gabriel Castiglia · November 26, 2026 · version 2.5.0 · GPL-2.0-only
 
-English · [Español](README.es.md)
+English · [Español](README.es.md) · [日本語](README.ja.md)
 
 PDF manual: [`docs/Muelle-manual-en.pdf`](docs/Muelle-manual-en.pdf)
 
@@ -56,7 +56,9 @@ over a newer one. An installed Muelle can also update itself: see [New versions]
 
 For an installation without windows: `muelle-setup.exe /quiet` (Windows still asks for administrator rights).
 
-To start Muelle with Windows, turn on Settings → Behavior → "Start Muelle when Windows starts".
+To start Muelle with Windows, turn on Settings → Behavior → "Start Muelle when Windows starts". If you made a
+Task Scheduler task that starts Muelle (`\Muelle (inicio de sesion)` or `\Muelle`), the check box follows that task:
+on enables it, off disables it, and the Run key of the registry is not used too, so Muelle never starts twice.
 
 ## Uninstallation
 
@@ -198,7 +200,7 @@ Calculator…) follow the interface language.
 
 | What | Where |
 |---|---|
-| Installed program | `C:\Program Files\Muelle`, with `LICENSE.txt`, `README.txt` and `README.es.txt` |
+| Installed program | `C:\Program Files\Muelle`, with `LICENSE.txt`, `README.txt`, `README.es.txt` and `README.ja.txt` |
 | Settings | `%APPDATA%\Muelle\config.json` (it can be deleted to start over); the version before the last save in `config.previous.json` |
 | Settings that could not be read | An icon or setting this version cannot read is dropped alone, never the whole list: what was dropped goes to `config.dropped-<date>.json` and the whole file as it was to `config.partial-<date>.json` |
 | Error log, if anything fails | `%APPDATA%\Muelle\muelle.log`, kept under 512 KB (the previous part in `muelle.old.log`) |
@@ -225,15 +227,15 @@ automatically as a NuGet package. A release must carry `muelle-setup.exe`, `SHA2
 names, since the updates look for them.
 
 `Muelle.exe --self-test <log>` checks the settings file, the stacks, the icons per screen and the update
-functions (version comparison, hashes, the setup's command line), and writes one line per check to the
+functions (version comparison, hashes, the signature, the setup's command line), and writes one line per check to the
 log; its exit code is the number of failures. It works on a throwaway settings folder in `%TEMP%` that it
 deletes at the end, shows no window and leaves a running Muelle alone. With `--online` it also downloads
-the setup of the latest release and checks it against its `SHA256SUMS.txt`, without running it. The version is set in one place, `src\Muelle\Muelle.csproj`, and the installers and the
+the setup of the latest release and checks it against its `SHA256SUMS.txt` and signature, without running it. The version is set in one place, `src\Muelle\Muelle.csproj`, and the installers and the
 About window read it from there.
 
 `scripts\screenshots.ps1` renders the images in `docs\images` with example apps (from a desktop session:
 over SSH the dock image comes out empty), and `scripts/manual.sh` (with pandoc and Google Chrome, on macOS
-or in Git Bash on Windows) builds the PDF manuals and `README.txt` and `README.es.txt` from this file and `README.es.md`. `scripts/make_icon.py`
+or in Git Bash on Windows) builds the PDF manuals and `README.txt`, `README.es.txt` and `README.ja.txt` from this file, `README.es.md` and `README.ja.md`. `scripts/make_icon.py`
 draws the icon in its twelve colours from the engraving in `assets/` (Python 3 with numpy, opencv-python
 and Pillow).
 

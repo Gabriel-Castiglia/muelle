@@ -2,6 +2,26 @@
 
 All notable changes to Muelle. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+## 2.5.0 - 2026-11-26
+
+### Added
+
+- "Start Muelle when Windows starts" recognizes a Task Scheduler task made by hand that starts Muelle
+  (`\Muelle (inicio de sesion)` or `\Muelle`): the check box shows it, turning it off disables the task and turning it
+  on enables it again, and the Run key is not added on top, so Muelle never starts twice. The task is looked for off
+  the UI thread, so the dock does not start later.
+- README and PDF manual in Japanese (`README.ja.md`, `docs/Muelle-manual-ja.pdf`), with images of the windows in
+  Japanese; setup installs `README.ja.txt` next to the other READMEs. Building the manuals checks the version under
+  the title of the Japanese README too.
+- The self-test checks that the startup task can be looked for.
+
+### Changed
+
+- Lighter drawing: the shadow under the icons is no longer applied to the pointer area, which spans the whole
+  length of the screen, but only to what is drawn; the name label is laid out once per name instead of on
+  every frame, and the tiles of icons without a picture are made once.
+- The pictures of the windows in the manuals are taken again, so Settings shows "Lock dock".
+
 ## 2.4.2 - 2026-11-25
 
 ### Changed

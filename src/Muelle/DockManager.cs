@@ -54,9 +54,15 @@ internal sealed class DockManager
         Theme.Changed += () => { foreach (var w in windows) w.View.ThemeChanged(); };
         if (screenshotPath == null && !selfTest)
         {
-            Config.StartWithWindows = DockConfig.IsStartupEnabled();
-            if (Config.StartWithWindows) DockConfig.SetStartup(true); // refreshes the path if the executable moved
             if (firstRun) Config.Save();
+            // Looking for a startup task runs schtasks, so it is done off the UI thread and never delays the dock.
+            var ui = Dispatcher.CurrentDispatcher;
+            Task.Run(() =>
+            {
+                bool on = DockConfig.IsStartupEnabled();
+                if (on) DockConfig.RefreshStartup(); // the path, if the executable moved
+                ui.BeginInvoke(() => Config.StartWithWindows = on);
+            });
         }
         foreach (var c in Config.Items) Items.Add(DockItem.From(c));
 

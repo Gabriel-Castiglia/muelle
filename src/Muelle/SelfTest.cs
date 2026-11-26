@@ -431,6 +431,8 @@ internal static class SelfTest
               && !ReleaseSignature.Valid(signed, "") && !ReleaseSignature.Valid(signed, null) && !ReleaseSignature.Valid(signed, "not base64!"));
         Check("a release without hashes cannot install itself", !Updates.Parse("""{ "tag_name": "v9", "assets": [] }""").CanInstall);
 
+        Check("the startup task is looked for without errors", Record(() => DockConfig.StartupTask()));
+
         string dir = DockConfig.Folder, file = Path.Combine(dir, "setup.bin");
         File.WriteAllBytes(file, Encoding.ASCII.GetBytes("Muelle"));
         string good = Convert.ToHexString(SHA256.HashData(Encoding.ASCII.GetBytes("Muelle"))).ToLowerInvariant();
@@ -484,6 +486,12 @@ internal static class SelfTest
     {
         try { return File.Exists(file) ? Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(file))) + File.GetLastWriteTimeUtc(file).Ticks : "none"; }
         catch (Exception ex) { return "unreadable: " + ex.Message; }
+    }
+
+    private static bool Record(Func<object> f)
+    {
+        try { Line("        " + (f()?.ToString() ?? "none")); return true; }
+        catch (Exception ex) { Line("        error: " + ex.Message); return false; }
     }
 
     private static void Section(string name, Action body)

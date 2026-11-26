@@ -80,6 +80,9 @@
         <Component Id="ReadmeEs">
           <File Id="ReadmeEs" Source="..\..\README.es.txt" KeyPath="yes" />
         </Component>
+        <Component Id="ReadmeJa">
+          <File Id="ReadmeJa" Source="..\..\README.ja.txt" KeyPath="yes" />
+        </Component>
       </Directory>
     </StandardDirectory>
 
@@ -90,6 +93,7 @@
       <ComponentRef Id="License" />
       <ComponentRef Id="Readme" />
       <ComponentRef Id="ReadmeEs" />
+      <ComponentRef Id="ReadmeJa" />
     </Feature>
   </Package>
 </Wix>

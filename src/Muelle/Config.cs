@@ -430,8 +430,14 @@ public sealed class DockConfig
 
     // ---- Start with Windows ----
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
+    /// <summary>
+    /// A scheduled task that starts Muelle at sign-in, made by hand instead of the Run key (it starts earlier and with a
+    /// higher priority). When it exists, the check box follows it: on enables it, off disables it, and the Run key is
+    /// not used too, so Muelle never starts twice.
+    /// </summary>
+    internal static readonly string[] StartupTasks = { @"\Muelle (inicio de sesion)", @"\Muelle" };
 
-    public static bool IsStartupEnabled()
+    private static bool RunValue()
     {
         try
         {
@@ -441,7 +447,56 @@ public sealed class DockConfig
         catch { return false; }
     }
 
+    /// <summary>The startup task of <see cref="StartupTasks"/> that exists and runs Muelle.exe, with whether it is enabled; null if none.</summary>
+    internal static (string Name, bool Enabled)? StartupTask()
+    {
+        foreach (var name in StartupTasks)
+        {
+            var (code, output) = Schtasks($"/query /tn \"{name}\" /xml");
+            if (code != 0 || !output.Contains("Muelle.exe", StringComparison.OrdinalIgnoreCase)) continue;
+            var m = System.Text.RegularExpressions.Regex.Match(output, @"<Settings>.*?<Enabled>(\w+)</Enabled>", System.Text.RegularExpressions.RegexOptions.Singleline);
+            return (name, !m.Success || !m.Groups[1].Value.Equals("false", StringComparison.OrdinalIgnoreCase));
+        }
+        return null;
+    }
+
+    private static (int Code, string Output) Schtasks(string arguments)
+    {
+        try
+        {
+            using var p = Process.Start(new ProcessStartInfo("schtasks.exe", arguments)
+            {
+                UseShellExecute = false, CreateNoWindow = true,
+                RedirectStandardOutput = true, RedirectStandardError = true,
+            });
+            var output = p.StandardOutput.ReadToEndAsync();
+            p.StandardError.ReadToEnd();
+            if (!p.WaitForExit(10000)) { try { p.Kill(); } catch { } return (-1, ""); }
+            return (p.ExitCode, output.Result);
+        }
+        catch { return (-1, ""); }
+    }
+
+    public static bool IsStartupEnabled() => RunValue() || StartupTask() is { Enabled: true };
+
+    /// <summary>Refreshes the path in the Run key if Muelle starts from there (the executable may have moved).</summary>
+    public static void RefreshStartup()
+    {
+        if (RunValue() && StartupTask() == null) SetRun(true);
+    }
+
     public static void SetStartup(bool on)
+    {
+        if (StartupTask() is { } task)
+        {
+            var (code, _) = Schtasks($"/change /tn \"{task.Name}\" {(on ? "/enable" : "/disable")}");
+            if (code != 0) Program.Log($"Could not {(on ? "enable" : "disable")} the startup task {task.Name} (schtasks {code}).");
+            SetRun(false);
+        }
+        else SetRun(on);
+    }
+
+    private static void SetRun(bool on)
     {
         try
         {

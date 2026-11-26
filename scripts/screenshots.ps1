@@ -10,7 +10,7 @@
 # It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for details.
 
 # Renders the dock, an open stack, the settings window and the About window, light and dark, and two pages
-# of the setup window, in English and Spanish, to docs\images\ for the manuals. It uses the test option
+# of the setup window, in English, Spanish and Japanese, to docs\images\ for the manuals. It uses the test option
 # --screenshot of each program: no configuration file is created or changed, nothing is installed, and the
 # programs exit by themselves. With --sample the dock starts from the default settings and shows example
 # apps (common Windows programs) and a stack, never the apps or settings of the user who runs it. Requires
@@ -35,7 +35,7 @@ function Render([string]$exe, [string]$png, [string[]]$arguments) {
     Write-Host "Image: docs\images\$(Split-Path $png -Leaf)"
 }
 
-foreach ($language in 'en', 'es') {
+foreach ($language in 'en', 'es', 'ja') {
     foreach ($window in 'dock', 'stack', 'settings', 'about') {
         foreach ($theme in 'light', 'dark') {
             $name = if ($theme -eq 'light') { "$window-$language.png" } else { "$window-dark-$language.png" }

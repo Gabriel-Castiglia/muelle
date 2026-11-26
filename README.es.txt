@@ -1,9 +1,9 @@
 Muelle
 ======
 
-Gabriel Castiglia · 25 de noviembre de 2026 · versión 2.4.2 · GPL-2.0-only
+Gabriel Castiglia · 26 de noviembre de 2026 · versión 2.5.0 · GPL-2.0-only
 
-English (README.txt) · Español
+English (README.txt) · Español · 日本語 (README.ja.txt)
 
 Manual en PDF: docs/Muelle-manual-es.pdf
 
@@ -56,7 +56,10 @@ actualizar solo: ver Versiones nuevas (#versiones-nuevas).
 Para instalar sin ventanas: muelle-setup.exe /quiet (Windows igual pide permiso de administrador).
 
 Para que Muelle arranque con Windows, marcar Configuración → Comportamiento → «Iniciar Muelle al
-encender Windows».
+encender Windows». Si armaste a mano una tarea del Programador de tareas que arranca Muelle
+(\Muelle (inicio de sesion) o \Muelle), la casilla sigue a esa tarea: marcarla la habilita,
+desmarcarla la deshabilita, y no se usa además la clave Run del registro, así Muelle nunca arranca
+dos veces.
 
 Desinstalación
 --------------
@@ -209,7 +212,7 @@ Archivos
 
   Qué                                  Dónde
   ------------------------------------ -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  Programa instalado                   C:\Program Files\Muelle, con LICENSE.txt, README.txt y README.es.txt
+  Programa instalado                   C:\Program Files\Muelle, con LICENSE.txt, README.txt, README.es.txt y README.ja.txt
   Configuración                        %APPDATA%\Muelle\config.json (se puede borrar para empezar de cero); la versión anterior al último guardado, en config.previous.json
   Configuración que no se pudo leer    Un icono o un ajuste que esta versión no puede leer se descarta solo, nunca la lista entera: lo descartado va a config.dropped-<fecha>.json y el archivo completo, tal como estaba, a config.partial-<fecha>.json
   Registro de errores, si algo falla   %APPDATA%\Muelle\muelle.log, de menos de 512 KB (la parte anterior queda en muelle.old.log)
@@ -237,18 +240,19 @@ paquete NuGet. Cada versión publicada tiene que llevar muelle-setup.exe, SHA256
 release.sig con esos nombres, porque las actualizaciones los buscan.
 
 Muelle.exe --self-test <registro> revisa el archivo de configuración, las pilas, los iconos por
-pantalla y las funciones de actualización (comparación de versiones, hashes, la línea de comandos
-del instalador), y escribe una línea por prueba en el registro; su código de salida es la cantidad
-de fallas. Trabaja sobre una carpeta de configuración descartable en %TEMP% que borra al final, no
-muestra ventanas y no toca un Muelle abierto. Con --online además baja el instalador de la última
-versión y lo compara con su SHA256SUMS.txt, sin ejecutarlo. La versión se fija en un solo lugar,
-src\Muelle\Muelle.csproj, y los instaladores y la ventana Acerca de la leen de ahí.
+pantalla y las funciones de actualización (comparación de versiones, hashes, la firma, la línea de
+comandos del instalador), y escribe una línea por prueba en el registro; su código de salida es la
+cantidad de fallas. Trabaja sobre una carpeta de configuración descartable en %TEMP% que borra al
+final, no muestra ventanas y no toca un Muelle abierto. Con --online además baja el instalador de la
+última versión y lo compara con su SHA256SUMS.txt y su firma, sin ejecutarlo. La versión se fija en
+un solo lugar, src\Muelle\Muelle.csproj, y los instaladores y la ventana Acerca de la leen de ahí.
 
 scripts\screenshots.ps1 genera las imágenes de docs\images con aplicaciones de ejemplo (desde una
 sesión de escritorio: por SSH la imagen del dock sale vacía), y scripts/manual.sh (con pandoc y
-Google Chrome, en macOS o en Git Bash en Windows) arma los manuales en PDF y README.txt y
-README.es.txt a partir de README.md y de este archivo. scripts/make_icon.py dibuja el ícono en sus
-doce colores a partir del grabado de assets/ (Python 3 con numpy, opencv-python y Pillow).
+Google Chrome, en macOS o en Git Bash en Windows) arma los manuales en PDF y README.txt,
+README.es.txt y README.ja.txt a partir de README.md, de este archivo y de README.ja.md.
+scripts/make_icon.py dibuja el ícono en sus doce colores a partir del grabado de assets/ (Python 3
+con numpy, opencv-python y Pillow).
 
   Carpeta             Contenido
   ------------------- -----------------------------------------------------------------------------------------

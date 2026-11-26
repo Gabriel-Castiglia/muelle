@@ -24,7 +24,7 @@
 html { font-size: 10.5pt; }
 
 body {
-    font-family: "Segoe UI Variable Text", "Segoe UI", -apple-system, "Helvetica Neue", sans-serif;
+    font-family: "Segoe UI Variable Text", "Segoe UI", "Yu Gothic UI", "Meiryo UI", -apple-system, "Helvetica Neue", sans-serif;
     color: var(--text);
     line-height: 1.5;
     max-width: none;

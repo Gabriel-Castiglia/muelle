@@ -77,17 +77,35 @@ internal sealed class DockView : FrameworkElement
         Focusable = false;
         AllowDrop = true;
         RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.HighQuality);
-        Effect = new DropShadowEffect
-        {
-            BlurRadius = 12, ShadowDepth = 1.5, Direction = 270, Opacity = 0.38,
-            Color = Colors.Black, RenderingBias = RenderingBias.Performance,
-        };
+        // The shadow is applied only to what is drawn (background, icons, dots, label), in a visual of its own. Before
+        // 2.5.0 it was applied to the whole view, whose nearly transparent pointer area spans the full length of the
+        // screen, so every frame of the zoom blurred a strip as long as the screen.
+        RenderOptions.SetBitmapScalingMode(content, BitmapScalingMode.HighQuality);
+        content.Effect = shadow;
+        AddVisualChild(content);
     }
+
+    private readonly DrawingVisual content = new();
+    // The name label of the last icon under the pointer, laid out once (see OnRender).
+    private string labelText;
+    private double labelPpd;
+    private Brush labelBrush;
+    private FormattedText labelFt;
+    private static readonly Pen RemoveCross = Freeze(new Pen(Brushes.White, 1.8) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round });
+    private readonly DropShadowEffect shadow = new()
+    {
+        BlurRadius = 12, ShadowDepth = 1.5, Direction = 270, Opacity = 0.38,
+        Color = Colors.Black, RenderingBias = RenderingBias.Performance,
+    };
+
+    protected override int VisualChildrenCount => 1;
+    protected override Visual GetVisualChild(int index) => index == 0 ? content : throw new ArgumentOutOfRangeException(nameof(index));
 
     /// <summary>The theme changed: a lighter shadow under the icons on a light dock, and a redraw.</summary>
     public void ThemeChanged()
     {
-        if (Effect is DropShadowEffect shadow) shadow.Opacity = Theme.IsDark ? 0.38 : 0.24;
+        shadow.Opacity = Theme.IsDark ? 0.38 : 0.24;
+        labelText = null;
         InvalidateVisual();
     }
 
@@ -303,9 +321,9 @@ internal sealed class DockView : FrameworkElement
     }
 
     // ---------------- Rendering ----------------
-    protected override void OnRender(DrawingContext dc)
+    protected override void OnRender(DrawingContext area)
     {
-        if (ActualWidth < 1 || ActualHeight < 1) return;
+        if (ActualWidth < 1 || ActualHeight < 1) { content.RenderOpen().Close(); return; }
         double now = clock.Elapsed.TotalSeconds;
         ComputeLayout();
         double T = Thickness, b = Base;
@@ -313,9 +331,11 @@ internal sealed class DockView : FrameworkElement
         double hideOff = -hideT * (T + (Zoom - b) + b * 0.8 + 14);
         var pal = Theme.Dock;
 
-        // Nearly transparent area that receives the pointer and dropped files.
-        if (hideT < 0.97) dc.DrawRectangle(Catch, null, R(0, hideOff, L, T));
-        if (Cfg.AutoHide) dc.DrawRectangle(Catch, null, R(0, 0, L, 3 / ppd));
+        // Nearly transparent area that receives the pointer and dropped files: drawn on the view itself, without
+        // the shadow. Everything else goes to the visual that has the shadow.
+        if (hideT < 0.97) area.DrawRectangle(Catch, null, R(0, hideOff, L, T));
+        if (Cfg.AutoHide) area.DrawRectangle(Catch, null, R(0, 0, L, 3 / ppd));
+        using var dc = content.RenderOpen();
 
         // Fixed panel: continuous edge-to-edge bar, attached to the side of the screen.
         if (IsPanel)
@@ -374,7 +394,13 @@ internal sealed class DockView : FrameworkElement
             string text = e.IsPlaceholder ? tr("Arrastra aquí tus apps", "Drag your apps here", "ここにアプリをドラッグしてください") : e.Item?.Name;
             if (!string.IsNullOrEmpty(text))
             {
-                var ft = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, Face, 12.5, pal.LabelText, ppd);
+                // The text is laid out once per name, not on every frame of the zoom.
+                if (text != labelText || ppd != labelPpd || pal.LabelText != labelBrush)
+                {
+                    labelText = text; labelPpd = ppd; labelBrush = pal.LabelText;
+                    labelFt = new FormattedText(text, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, Face, 12.5, pal.LabelText, ppd);
+                }
+                var ft = labelFt;
                 double w = ft.Width + 20, h = ft.Height + 8;
                 double bo = e.Item != null ? BounceOffset(e.Item, now) : 0;
                 double c0 = Pad + e.Size + bo + (Vertical ? 12 : 8) + hideOff;
@@ -398,7 +424,7 @@ internal sealed class DockView : FrameworkElement
             {
                 var c = new Point(r.Right - 3, r.Top + 3);
                 dc.DrawEllipse(RemoveBrush, null, c, 8, 8);
-                var x = Freeze(new Pen(Brushes.White, 1.8) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round });
+                var x = RemoveCross;
                 dc.DrawLine(x, new Point(c.X - 3.2, c.Y - 3.2), new Point(c.X + 3.2, c.Y + 3.2));
                 dc.DrawLine(x, new Point(c.X - 3.2, c.Y + 3.2), new Point(c.X + 3.2, c.Y - 3.2));
             }
@@ -439,11 +465,15 @@ internal sealed class DockView : FrameworkElement
         if (r.Width < 1) return;
         if (it.Icon != null) { dc.DrawImage(it.Icon, r); return; }
         // No icon: colored rounded square with the initial.
-        int hash = 0;
-        foreach (char ch in it.Name ?? "") hash = hash * 31 + ch;
-        double hue = (hash & 0xFFFF) % 360;
-        var top = FromHsl(hue, 0.55, 0.58); var bottom = FromHsl(hue + 25, 0.6, 0.42);
-        var brush = new LinearGradientBrush(top, bottom, 90);
+        string name = it.Name ?? "";
+        if (!Tiles.TryGetValue(name, out var brush))
+        {
+            int hash = 0;
+            foreach (char ch in name) hash = hash * 31 + ch;
+            double hue = (hash & 0xFFFF) % 360;
+            var top = FromHsl(hue, 0.55, 0.58); var bottom = FromHsl(hue + 25, 0.6, 0.42);
+            Tiles[name] = brush = Freeze(new LinearGradientBrush(top, bottom, 90));
+        }
         double rad = r.Width * 0.24;
         var rr = r; rr.Inflate(-r.Width * 0.06, -r.Width * 0.06);
         dc.DrawRoundedRectangle(brush, null, rr, rad, rad);
@@ -451,6 +481,9 @@ internal sealed class DockView : FrameworkElement
         var ft = new FormattedText(letter, CultureInfo.CurrentUICulture, FlowDirection.LeftToRight, Face, rr.Height * 0.5, Brushes.White, 1.25);
         dc.DrawText(ft, new Point(rr.X + (rr.Width - ft.Width) / 2, rr.Y + (rr.Height - ft.Height) / 2));
     }
+
+    /// <summary>The frozen tile of each icon without a picture, by name (made once, not on every frame).</summary>
+    private static readonly Dictionary<string, Brush> Tiles = new();
 
     private static Color FromHsl(double h, double s, double l)
     {

@@ -13,6 +13,7 @@
 # Builds the PDF manuals and the plain-text READMEs from the Markdown READMEs:
 #   README.md     -> docs/Muelle-manual-en.pdf and README.txt
 #   README.es.md  -> docs/Muelle-manual-es.pdf and README.es.txt
+#   README.ja.md  -> docs/Muelle-manual-ja.pdf and README.ja.txt
 # The .txt copies are for reading on Windows without a Markdown viewer; they are never edited by hand.
 # Requires pandoc (brew install pandoc, or pandoc.org) and Google Chrome, which prints the HTML to PDF.
 # Runs on macOS and in Git Bash on Windows; CHROME may name another Chrome (or Edge) executable.
@@ -33,7 +34,7 @@ native() { if command -v cygpath >/dev/null; then cygpath -m "$1"; else printf '
 REPO="https://github.com/Gabriel-Castiglia/muelle"
 VERSION=$(sed -n 's|.*<Version>\(.*\)</Version>.*|\1|p' src/Muelle/Muelle.csproj | head -1)
 # The line under the title of each README names the version; 2.3.2 to 2.4.1 went out with "version 2.3.1" there.
-for f in README.md:version README.es.md:versión; do
+for f in README.md:version README.es.md:versión README.ja.md:バージョン; do
     grep -q "· ${f#*:} $VERSION ·" "${f%%:*}" || { echo "${f%%:*} does not say \"${f#*:} $VERSION\" under its title" >&2; exit 1; }
 done
 
@@ -71,7 +72,7 @@ function Header(el)
   return pandoc.Plain({pandoc.Str(text), pandoc.LineBreak(), pandoc.Str(rule)})
 end
 function Link(el)
-  local target = el.target:gsub("^README%.es%.md$", "README.es.txt"):gsub("^README%.md$", "README.txt")
+  local target = el.target:gsub("^README%.es%.md$", "README.es.txt"):gsub("^README%.ja%.md$", "README.ja.txt"):gsub("^README%.md$", "README.txt")
   local text = pandoc.utils.stringify(el.content)
   if text == target then return pandoc.Str(target) end
   if not target:match("^https?:") then return pandoc.Str(text .. " (" .. target .. ")") end
@@ -114,6 +115,8 @@ HTML
 
 build README.md    en "Muelle · Manual"            "A dock for Windows · version"   docs/Muelle-manual-en.pdf
 build README.es.md es "Muelle · Manual de usuario" "Dock para Windows · versión"     docs/Muelle-manual-es.pdf
+build README.ja.md ja "Muelle · ユーザーマニュアル"   "Windows 用ドック · バージョン"     docs/Muelle-manual-ja.pdf
 
 text README.md    README.txt
 text README.es.md README.es.txt
+text README.ja.md README.ja.txt
