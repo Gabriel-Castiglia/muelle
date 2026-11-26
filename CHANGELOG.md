@@ -2,6 +2,35 @@
 
 All notable changes to Muelle. Versions follow [semantic versioning](https://semver.org): major.minor.patch.
 
+English · [Español](CHANGELOG.es.md) · [日本語](CHANGELOG.ja.md)
+
+## 2.5.1 - 2026-11-26
+
+### Fixed
+
+- With "Lock dock" on, a click on the "+" slot of an empty dock still opened the file dialog and added apps; it
+  does nothing now, like the other ways of adding.
+- An `.ico` chosen as the icon of a stack is read straight from its file, as for any other icon: a file that
+  changed showed the old picture kept in the shell's icon cache.
+- A settings window opened at startup (`Muelle.exe --settings`) could show "Start Muelle when Windows starts" as it
+  was last saved, not as the startup task or the Run key say; it is updated as soon as Muelle has looked.
+- The update window changes the icon in its header when the colour is changed, like the About window.
+- The READMEs and manuals said that the dock moves behind a full-screen app (it hides completely since 2.3.1) and
+  that "Check for updates" and the appearance are in the dock menu (they are in About Muelle… and in Settings
+  since 2.4.0).
+
+### Changed
+
+- The PDF manuals use Muelle's own light colours and its blue accent, with a larger icon on the cover.
+- The version history is also in Spanish and Japanese (`CHANGELOG.es.md`, `CHANGELOG.ja.md`).
+- The READMEs mention `Muelle.exe --settings` and everything the self-test checks; the Spanish texts write "icono"
+  everywhere and use "vos" in the hint of the empty dock, like the rest of the program.
+- Code cleanup: the add-apps file dialog, the buttons and muted texts of the windows, opening a file or web page,
+  showing a file in Explorer, reading a chosen icon and the names of the screens are each written once and
+  shared; unused code is removed, including `scripts/make-icon.ps1`, which drew the icon used before 2.1.0 and
+  would have overwritten the current one.
+- The self-test checks the icon of a stack and the add-apps dialog too.
+
 ## 2.5.0 - 2026-11-26
 
 ### Added

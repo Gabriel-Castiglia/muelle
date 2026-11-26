@@ -13,12 +13,17 @@
 
 @page { size: A4; margin: 20mm 18mm 22mm; }
 
+/*
+ * The colours of Muelle's own light theme with its default accent, blue (Theme.cs: Palette and Accents),
+ * so the manual looks like the program it describes.
+ */
 :root {
-    --text: #1d2125;
-    --muted: #5b636b;
-    --accent: #4f46e5;
-    --line: #dfe3e6;
-    --code-bg: #f4f6f7;
+    --text: #1d1d1f;        /* Mu.Text */
+    --muted: #6e6e73;       /* Mu.TextMuted */
+    --accent: #1f5fd1;      /* the blue accent, light tone: also the tile of the icon */
+    --accent-soft: #d7e2f7; /* Mu.AccentSoft: the accent at 18 % over white */
+    --line: #e3e3e8;        /* Mu.CardBorder */
+    --code-bg: #f3f3f6;     /* Mu.Window */
 }
 
 html { font-size: 10.5pt; }
@@ -39,7 +44,7 @@ body {
     margin-bottom: 18px;
     border-bottom: 2px solid var(--accent);
 }
-.cover img { width: 64px; height: 64px; }
+.cover img { width: 72px; height: 72px; }
 .cover .name { font-size: 22pt; font-weight: 700; margin: 0; }
 .cover .subtitle { margin: 2px 0 0; color: var(--muted); }
 
@@ -86,7 +91,7 @@ table {
     break-inside: avoid;
 }
 th, td { border: 1px solid var(--line); padding: 5px 7px; text-align: left; vertical-align: top; }
-th { background: var(--code-bg); }
+th { background: var(--accent-soft); }
 td code { overflow-wrap: anywhere; }
 
 /* Screenshots: centered, never wider than the page, and short enough to keep the text around them. */

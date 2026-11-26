@@ -13,6 +13,7 @@
 
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -56,8 +57,8 @@ internal static class Theme
     /// <summary>Appearance settings: as Windows, light or dark.</summary>
     public const string Auto = "auto", Light = "light", Dark = "dark";
 
+    /// <summary>The accent with that key; the default one for an unknown key.</summary>
     public static Accent Get(string key) => Accents.FirstOrDefault(a => a.Key == key) ?? Accents[0];
-    public static bool IsKnownAccent(string key) => Accents.Any(a => a.Key == key);
 
     public static bool IsDark { get; private set; } = true;
     public static Accent Current { get; private set; } = Accents[0];
@@ -193,9 +194,44 @@ internal static class Theme
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attr, ref int value, int size);
 
+    /// <summary>A colour from 0xRRGGBB.</summary>
     public static Color Rgb(uint v) => Color.FromRgb((byte)(v >> 16), (byte)(v >> 8), (byte)v);
+    /// <summary>A colour from 0xAARRGGBB.</summary>
     public static Color Argb(uint v) => Color.FromArgb((byte)(v >> 24), (byte)(v >> 16), (byte)(v >> 8), (byte)v);
+    /// <summary>A frozen (read-only, shareable and cheaper to draw) brush of one colour.</summary>
     public static SolidColorBrush Frozen(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
+}
+
+/// <summary>Small building blocks shared by the windows of Muelle, so they look and behave the same.</summary>
+internal static class Ui
+{
+    /// <summary>A button that runs <paramref name="onClick"/>, with room to its right and below for the next one.</summary>
+    public static Button Button(string text, Action onClick)
+    {
+        var b = new Button { Content = text, Margin = new Thickness(0, 0, 8, 6) };
+        b.Click += (s, e) => onClick();
+        return b;
+    }
+
+    /// <summary>A wrapping text in the muted colour of the theme (hints and secondary lines).</summary>
+    public static TextBlock Muted(string text, double size, Thickness margin)
+    {
+        var t = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, FontSize = size, Margin = margin };
+        t.SetResourceReference(TextBlock.ForegroundProperty, "Mu.TextMuted");
+        return t;
+    }
+
+    /// <summary>The file dialog that picks programs and shortcuts to add (to the dock or to a stack), several at once.</summary>
+    public static Microsoft.Win32.OpenFileDialog AppsDialog(string title) => new()
+    {
+        Title = title,
+        Filter = Loc.tr("Programas y accesos directos", "Programs and shortcuts", "プログラムとショートカット") + "|*.exe;*.lnk;*.url;*.bat;*.cmd|"
+               + Loc.tr("Todos los archivos", "All files", "すべてのファイル") + "|*.*",
+        Multiselect = true,
+        // A shortcut is added as itself, not as the program it points to.
+        DereferenceLinks = false,
+        InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu),
+    };
 }
 
 /// <summary>The colours of the dock itself: dark glass on a dark theme, frosted light glass on a light one.</summary>
@@ -205,7 +241,6 @@ internal sealed class DockPalette
     public Pen GlassPen, GlassInner, DotPen, LabelPen, DashPen;
     /// <summary>Panel colour; its opacity comes from the settings.</summary>
     public Color Panel;
-    public Color Shadow;
 
     public static DockPalette For(bool dark, Color accent)
     {
@@ -243,7 +278,6 @@ internal sealed class DockPalette
             DashPen = dash,
             DashFill = dark ? B(0x30FFFFFF) : B(0x18000000),
             Mark = dark ? Brushes.White : Theme.Frozen(Theme.Rgb(0x303036)),
-            Shadow = Colors.Black,
         };
         return p;
     }

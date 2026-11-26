@@ -110,7 +110,7 @@ internal sealed class SetupWindow : Window
         Grid.SetColumn(titles, 1);
         grid.Children.Add(titles);
 
-        // The language menu: its label carries every language, so it can be found from either one.
+        // The language menu: its label carries every language, so it can be found from any of them.
         var language = new StackPanel { VerticalAlignment = VerticalAlignment.Top };
         language.Children.Add(new TextBlock { Text = "Language / Idioma / 言語", FontSize = 11.5, Foreground = Brushes.DimGray, Margin = new Thickness(0, 0, 0, 3) });
         var combo = new ComboBox { Width = 120 };
@@ -320,6 +320,6 @@ internal sealed class SetupWindow : Window
 
     private static void Open(string target)
     {
-        try { Process.Start(new ProcessStartInfo(target) { UseShellExecute = true }); } catch { }
+        try { Process.Start(new ProcessStartInfo(target) { UseShellExecute = true })?.Dispose(); } catch { }
     }
 }

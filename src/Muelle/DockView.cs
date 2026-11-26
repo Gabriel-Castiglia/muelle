@@ -391,7 +391,7 @@ internal sealed class DockView : FrameworkElement
         if (hoverIndex >= 0 && hoverIndex < layout.Count && k > 0.04 && !dragging && !host.MenuOpen)
         {
             var e = layout[hoverIndex];
-            string text = e.IsPlaceholder ? tr("Arrastra aquí tus apps", "Drag your apps here", "ここにアプリをドラッグしてください") : e.Item?.Name;
+            string text = e.IsPlaceholder ? tr("Arrastrá aquí tus apps", "Drag your apps here", "ここにアプリをドラッグしてください") : e.Item?.Name;
             if (!string.IsNullOrEmpty(text))
             {
                 // The text is laid out once per name, not on every frame of the zoom.
@@ -532,7 +532,8 @@ internal sealed class DockView : FrameworkElement
         if (hoverIndex >= 0)
         {
             var en = layout[hoverIndex];
-            if (en.IsPlaceholder) { host.AddWithDialog(0); e.Handled = true; return; }
+            // The empty dock's "+" slot opens the file dialog, unless the dock is locked (adding is locked too).
+            if (en.IsPlaceholder) { if (!Cfg.LockItems) host.AddWithDialog(0); e.Handled = true; return; }
             pressItem = en.Item;
             pressPoint = mouse;
             CaptureMouse();

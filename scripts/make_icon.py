@@ -19,8 +19,9 @@ Writes:
   src/Muelle/muelle.ico             the program's icon, on the default (blue) tile, 16-256 px
   src/Muelle/icons/muelle_<key>.ico the same on the tile of each accent colour, for the windows
                                     of Muelle when that colour is chosen
-  docs/images/icon.png         the icon, 256 px, for the documents
-  build/icon_sheet.png         a look at every accent and size
+  docs/images/icon.png              the icon, 256 px, for the README and the PDF manuals
+  build/icon_sheet.png              a look at every accent and size
+  build/icon_1024.png               the icon at full size, on the default tile
 
 Run:  python scripts/make_icon.py      (needs numpy, opencv-python and Pillow)
 """

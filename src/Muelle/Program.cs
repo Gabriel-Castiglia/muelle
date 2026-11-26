@@ -26,10 +26,10 @@ internal static class Program
         // Started again by the setup after an update: the arguments it had before come back.
         args = Updates.AfterUpdateArgs(args, out bool updated, out string updateFailure);
 
-        // Test options (not shown to users): "--screenshot <file.png>" renders a window to a PNG and exits,
-        // without touching the configuration file; "--window dock|settings|about|update|menu|stack|stack-editor" picks the
-        // window (dock by default), "--language en|es", "--theme light|dark" and "--accent <key>" override the
-        // stored interface language, appearance and colour, and "--sample" shows example apps and a stack
+        // Test options (not shown to users): "--screenshot <file.png>" renders a window to a PNG and exits
+        // without touching the configuration file; "--window dock|settings|about|update|menu|stack|stack-editor"
+        // picks the window (dock by default); "--language en|es|ja", "--theme light|dark" and "--accent <key>"
+        // override the stored interface language, appearance and colour; "--sample" shows example apps and a stack
         // instead of the user's own. "--self-test <log>" checks the main parts on a throwaway configuration
         // (see SelfTest.cs) and exits with the number of failures.
         string shot = null, window = "dock", language = null, theme = null, accent = null, selfTest = null;

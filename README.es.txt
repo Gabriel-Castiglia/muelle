@@ -1,7 +1,7 @@
 Muelle
 ======
 
-Gabriel Castiglia · 26 de noviembre de 2026 · versión 2.5.0 · GPL-2.0-only
+Gabriel Castiglia · 26 de noviembre de 2026 · versión 2.5.1 · GPL-2.0-only
 
 English (README.txt) · Español · 日本語 (README.ja.txt)
 
@@ -97,7 +97,8 @@ Uso del dock
   evitar cambios por accidente.
 - Una pila es un icono que guarda varios accesos: un clic los despliega al lado. Ver Pilas (#pilas).
 - Cuando los iconos no entran en una pantalla, se achican solo en esa pantalla.
-- Con una aplicación a pantalla completa (un video, un juego) el dock pasa por detrás.
+- Con una aplicación a pantalla completa al frente (un video, un juego) el dock se oculta del todo,
+  también para el puntero en el borde, y vuelve cuando la aplicación sale de pantalla completa.
 
 El clic derecho sobre un icono ofrece un menú corto: Abrir otra ventana (o Abrir, si la aplicación
 está cerrada), Renombrar…, Fijar al dock o Liberar del dock, y Más (Ejecutar como administrador,
@@ -144,6 +145,8 @@ Configuración
 -------------
 
 Clic derecho sobre el dock → Configuración…. Cada cambio se aplica en el momento.
+Muelle.exe --settings arranca Muelle con la ventana de configuración abierta (útil para un acceso
+directo).
 
   Grupo                   Opciones
   ----------------------- ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -162,11 +165,11 @@ Muelle puede ser claro, oscuro o seguir lo que Windows tiene elegido para las ap
 (Configuración → Personalización → Colores), y cambia en el momento cuando Windows cambia. El dock
 pasa a ser de vidrio claro esmerilado o de vidrio oscuro, y las ventanas de configuración, Acerca de
 y aviso de versión nueva lo siguen, barra de título incluida. La apariencia se elige en
-Configuración → Apariencia o desde el menú del dock.
+Configuración → Apariencia.
 
 Hay doce colores. El elegido pinta el punto de las aplicaciones abiertas, los interruptores, los
-controles deslizantes y lo seleccionado, y el ícono de las ventanas de Muelle: el barco navega sobre
-un fondo de ese color. El ícono del menú Inicio sigue azul, porque Muelle se instala para todos los
+controles deslizantes y lo seleccionado, y el icono de las ventanas de Muelle: el barco navega sobre
+un fondo de ese color. El icono del menú Inicio sigue azul, porque Muelle se instala para todos los
 usuarios y ese acceso es de todos.
 
 Un archivo de configuración de una versión anterior conserva el dock oscuro que tenía; una
@@ -176,9 +179,9 @@ Versiones nuevas
 ----------------
 
 Una vez por día, Muelle le pregunta a GitHub por su última versión publicada; «Buscar
-actualizaciones», en el menú del dock y en Acerca de Muelle…, pregunta cuando se quiera. Si hay una
-versión más nueva, una ventana chica hace una sola pregunta: Actualizar ahora, Ver novedades (la
-página de la versión) o Más tarde. Después de «Actualizar ahora» todo pasa solo:
+actualizaciones», en Acerca de Muelle (Configuración → Acerca de…), pregunta cuando se quiera. Si
+hay una versión más nueva, una ventana chica hace una sola pregunta: Actualizar ahora, Ver novedades
+(la página de la versión) o Más tarde. Después de «Actualizar ahora» todo pasa solo:
 
 1.  El SHA256SUMS.txt de esa versión tiene que llevar la firma del autor (release.sig, que se
     comprueba con dos claves que trae Muelle); una versión sin firma válida se rechaza y solo se
@@ -240,18 +243,19 @@ paquete NuGet. Cada versión publicada tiene que llevar muelle-setup.exe, SHA256
 release.sig con esos nombres, porque las actualizaciones los buscan.
 
 Muelle.exe --self-test <registro> revisa el archivo de configuración, las pilas, los iconos por
-pantalla y las funciones de actualización (comparación de versiones, hashes, la firma, la línea de
-comandos del instalador), y escribe una línea por prueba en el registro; su código de salida es la
-cantidad de fallas. Trabaja sobre una carpeta de configuración descartable en %TEMP% que borra al
-final, no muestra ventanas y no toca un Muelle abierto. Con --online además baja el instalador de la
-última versión y lo compara con su SHA256SUMS.txt y su firma, sin ejecutarlo. La versión se fija en
-un solo lugar, src\Muelle\Muelle.csproj, y los instaladores y la ventana Acerca de la leen de ahí.
+pantalla, los iconos que siguen a su aplicación, la detección de aplicaciones a pantalla completa y
+las funciones de actualización (comparación de versiones, hashes, la firma, la línea de comandos del
+instalador), y escribe una línea por prueba en el registro; su código de salida es la cantidad de
+fallas. Trabaja sobre una carpeta de configuración descartable en %TEMP% que borra al final, no
+muestra ventanas y no toca un Muelle abierto. Con --online además baja el instalador de la última
+versión y lo compara con su SHA256SUMS.txt y su firma, sin ejecutarlo. La versión se fija en un solo
+lugar, src\Muelle\Muelle.csproj, y los instaladores y la ventana Acerca de la leen de ahí.
 
 scripts\screenshots.ps1 genera las imágenes de docs\images con aplicaciones de ejemplo (desde una
 sesión de escritorio: por SSH la imagen del dock sale vacía), y scripts/manual.sh (con pandoc y
 Google Chrome, en macOS o en Git Bash en Windows) arma los manuales en PDF y README.txt,
 README.es.txt y README.ja.txt a partir de README.md, de este archivo y de README.ja.md.
-scripts/make_icon.py dibuja el ícono en sus doce colores a partir del grabado de assets/ (Python 3
+scripts/make_icon.py dibuja el icono en sus doce colores a partir del grabado de assets/ (Python 3
 con numpy, opencv-python y Pillow).
 
   Carpeta             Contenido
@@ -261,13 +265,13 @@ con numpy, opencv-python y Pillow).
   installer/SetupUI   La ventana del instalador, en inglés, castellano y japonés (.NET Framework 4.7.2, WPF).
   installer/Setup     El instalador que lleva esa ventana y el MSI (bundle de WiX).
   scripts             Compilación, imágenes, icono y manuales.
-  assets              El grabado del que sale el ícono.
+  assets              El grabado del que sale el icono.
   docs                Manuales en PDF, imágenes y la hoja de estilo del manual.
 
 Historial de versiones
 ----------------------
 
-Ver CHANGELOG.md (en inglés).
+Ver CHANGELOG.es.md.
 
 Licencia
 --------
@@ -278,5 +282,5 @@ Muelle es software libre: se puede redistribuir y modificar según los términos
 Pública General GNU, solo la versión 2 (GPL-2.0-only), publicada por la Free Software Foundation. Se
 distribuye SIN NINGUNA GARANTÍA. El texto completo está en LICENSE.
 
-El ícono es el barco de tres palos del grabado de Frans Huys según Pieter Bruegel el Viejo (Los
+El icono es el barco de tres palos del grabado de Frans Huys según Pieter Bruegel el Viejo (Los
 barcos de vela, hacia 1561-1565), Museo Metropolitano de Arte, dominio público (CC0).

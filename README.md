@@ -5,7 +5,7 @@
 
 <p align="center"><img src="docs/images/dock-en.png" width="720" alt="The dock at the bottom of the screen"></p>
 
-Gabriel Castiglia · November 26, 2026 · version 2.5.0 · GPL-2.0-only
+Gabriel Castiglia · November 26, 2026 · version 2.5.1 · GPL-2.0-only
 
 English · [Español](README.es.md) · [日本語](README.ja.md)
 
@@ -94,7 +94,8 @@ For an uninstall without windows: `muelle-setup.exe /uninstall /quiet`.
   dock" prevents both, and pinning, unpinning and renaming from the menu, to avoid accidental changes.
 - A stack is one icon that holds several shortcuts: a click unfolds them beside it. See [Stacks](#stacks).
 - When the icons do not fit on a screen, they shrink on that screen only.
-- With a full-screen application (a video, a game) the dock moves behind it.
+- With a full-screen application in front (a video, a game) the dock hides completely, also from the pointer at
+  the screen edge, and comes back when the application leaves full screen.
 
 Right-clicking an icon offers a short menu: Open another window (or Open, when the app is closed),
 Rename…, Pin to dock or Unpin from dock, and More (Run as administrator, Open file location, Move to
@@ -115,7 +116,7 @@ front if it is already open. "Edit stack…" at the end of the list opens the st
 - In the editor: the name of the stack; its icon, either one of its own ("Choose icon…": an `.ico`, a
   program or a picture) or "Automatic icon", its first four shortcuts in a grid; and its shortcuts, with
   Add…, Remove, Move up and Move down. Nothing changes in the dock until "Save". If the stack left the dock
-  while it was being edited (it was removed, or "Each screen with its own icons" was switched), "Save" says so
+  while it was being edited (it was removed, or "Each screen has its own icons" was switched), "Save" says so
   and changes nothing.
 - "Move to stack" in the menu of an icon puts that icon at the end of a stack.
 - A stack is moved and removed like any other icon. An open app that is in a stack does not appear again
@@ -136,7 +137,8 @@ icons of each screen are kept for the next time.
 
 ## Settings
 
-Right-click the dock → Settings…. Every change applies at once.
+Right-click the dock → Settings…. Every change applies at once. `Muelle.exe --settings` starts Muelle with
+the settings window open (useful for a shortcut).
 
 ![The settings window](docs/images/settings-en.png)
 
@@ -155,7 +157,7 @@ Right-click the dock → Settings…. Every change applies at once.
 Muelle can be light, dark or follow the setting of Windows for apps (Settings → Personalization →
 Colors), and changes at once when Windows changes. The dock turns into frosted light glass or dark glass,
 and the settings, About and update windows follow, title bar included. The appearance is chosen in
-Settings → Appearance or from the dock menu.
+Settings → Appearance.
 
 ![The settings window, dark](docs/images/settings-dark-en.png)
 
@@ -168,8 +170,8 @@ A settings file from an earlier version keeps the dark dock it had; a new instal
 
 ## New versions
 
-Once a day, Muelle asks GitHub for its latest release; "Check for updates", in the dock menu and in About
-Muelle…, asks at any time. If there is a newer version, a small window asks one question: Update now, What
+Once a day, Muelle asks GitHub for its latest release; "Check for updates", in About Muelle… (Settings →
+About…), asks at any time. If there is a newer version, a small window asks one question: Update now, What
 is new (the release page) or Later. After "Update now" everything happens by itself:
 
 1. The `SHA256SUMS.txt` of the release must carry the author's signature (`release.sig`, checked against two
@@ -226,9 +228,9 @@ The first command builds the program. The second builds everything in `dist`: th
 automatically as a NuGet package. A release must carry `muelle-setup.exe`, `SHA256SUMS.txt` and `release.sig` with these
 names, since the updates look for them.
 
-`Muelle.exe --self-test <log>` checks the settings file, the stacks, the icons per screen and the update
-functions (version comparison, hashes, the signature, the setup's command line), and writes one line per check to the
-log; its exit code is the number of failures. It works on a throwaway settings folder in `%TEMP%` that it
+`Muelle.exe --self-test <log>` checks the settings file, the stacks, the icons per screen, the icons that follow
+their app, the detection of full-screen apps and the update functions (version comparison, hashes, the signature,
+the setup's command line), and writes one line per check to the log; its exit code is the number of failures. It works on a throwaway settings folder in `%TEMP%` that it
 deletes at the end, shows no window and leaves a running Muelle alone. With `--online` it also downloads
 the setup of the latest release and checks it against its `SHA256SUMS.txt` and signature, without running it. The version is set in one place, `src\Muelle\Muelle.csproj`, and the installers and the
 About window read it from there.

@@ -167,15 +167,7 @@ internal sealed class StackWindow : Window
     // ---------------- Helpers ----------------
     private void AddWithDialog()
     {
-        var dlg = new Microsoft.Win32.OpenFileDialog
-        {
-            Title = tr("Agregar a la pila", "Add to the stack", "スタックに追加"),
-            Filter = tr("Programas y accesos directos", "Programs and shortcuts", "プログラムとショートカット") + "|*.exe;*.lnk;*.url;*.bat;*.cmd|"
-                   + tr("Todos los archivos", "All files", "すべてのファイル") + "|*.*",
-            Multiselect = true,
-            DereferenceLinks = false,
-            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu),
-        };
+        var dlg = Ui.AppsDialog(tr("Agregar a la pila", "Add to the stack", "スタックに追加"));
         if (dlg.ShowDialog(this) == true) AddPaths(dlg.FileNames);
     }
 
@@ -193,8 +185,7 @@ internal sealed class StackWindow : Window
 
     private void RefreshPreview()
     {
-        ImageSource icon = null;
-        if (!string.IsNullOrWhiteSpace(Stack.Icon)) icon = Shell.LoadIcon(Stack.Icon, 256);
+        ImageSource icon = string.IsNullOrWhiteSpace(Stack.Icon) ? null : Shell.LoadChosenIcon(Stack.Icon);
         preview.Source = icon ?? DockItem.StackIcon(shown.Select(c => c.Icon));
     }
 
@@ -217,10 +208,5 @@ internal sealed class StackWindow : Window
         if (entries.SelectedIndex >= 0) action(entries.SelectedIndex);
     }
 
-    private static Button Button(string text, Action onClick)
-    {
-        var b = new Button { Content = text, Margin = new Thickness(0, 0, 8, 6) };
-        b.Click += (s, e) => onClick();
-        return b;
-    }
+    private static Button Button(string text, Action onClick) => Ui.Button(text, onClick);
 }

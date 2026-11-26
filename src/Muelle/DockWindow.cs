@@ -476,15 +476,7 @@ internal sealed class DockWindow : Window
     /// <summary>The file dialog that adds apps to a list (this dock's by default).</summary>
     public void AddWithDialog(int index, List<DockItem> target = null)
     {
-        var dlg = new Microsoft.Win32.OpenFileDialog
-        {
-            Title = tr("Agregar al dock", "Add to the dock", "ドックに追加"),
-            Filter = tr("Programas y accesos directos", "Programs and shortcuts", "プログラムとショートカット") + "|*.exe;*.lnk;*.url;*.bat;*.cmd|"
-                   + tr("Todos los archivos", "All files", "すべてのファイル") + "|*.*",
-            Multiselect = true,
-            DereferenceLinks = false,
-            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu),
-        };
+        var dlg = Ui.AppsDialog(tr("Agregar al dock", "Add to the dock", "ドックに追加"));
         Native.SetForegroundWindow(hwnd);
         if (dlg.ShowDialog(this) == true) Manager.AddPaths(target ?? Items, dlg.FileNames, index);
     }
@@ -494,10 +486,6 @@ internal sealed class DockWindow : Window
     public void ShowStack(DockItem stack)
     {
         var menu = BuildStackMenu(stack);
-        menu.Opened += (s, e) => { MenuOpen = true; View.Kick(); };
-        menu.Closed += (s, e) => { MenuOpen = false; View.Kick(); };
-        Native.SetForegroundWindow(hwnd);
-        menu.PlacementTarget = View;
         // It opens away from the screen edge, beside the icon.
         menu.Placement = Config.Edge switch
         {
@@ -506,6 +494,19 @@ internal sealed class DockWindow : Window
         };
         var r = View.IconLocalRect(stack);
         if (r.HasValue) menu.PlacementRectangle = r.Value;
+        OpenMenu(menu);
+    }
+
+    /// <summary>
+    /// Opens a menu of this dock. While it is open the dock stays shown and magnified (<see cref="MenuOpen"/>); the
+    /// dock window is brought to the front first, or the menu would not close when the user clicks elsewhere.
+    /// </summary>
+    private void OpenMenu(ContextMenu menu)
+    {
+        menu.Opened += (s, e) => { MenuOpen = true; View.Kick(); };
+        menu.Closed += (s, e) => { MenuOpen = false; View.Kick(); };
+        Native.SetForegroundWindow(hwnd);
+        menu.PlacementTarget = View;
         menu.IsOpen = true;
     }
 
@@ -554,15 +555,7 @@ internal sealed class DockWindow : Window
 
     // ---------------- Right-click menu ----------------
     /// <summary>Short menu: actions on the icon, adding apps, and access to the settings window.</summary>
-    public void ShowMenu(DockItem item, int insertAt)
-    {
-        var menu = BuildMenu(item, insertAt);
-        menu.Opened += (s, e) => { MenuOpen = true; View.Kick(); };
-        menu.Closed += (s, e) => { MenuOpen = false; View.Kick(); };
-        Native.SetForegroundWindow(hwnd);
-        menu.PlacementTarget = View;
-        menu.IsOpen = true;
-    }
+    public void ShowMenu(DockItem item, int insertAt) => OpenMenu(BuildMenu(item, insertAt));
 
     /// <summary>
     /// The right-click menu. On an icon: its own actions first, then the dock (lock, settings, quit), and "End task"
@@ -664,13 +657,8 @@ internal sealed class DockWindow : Window
 
     private static void OpenLocation(DockItem it)
     {
-        if (it.IsStack) return;
-        try
-        {
-            string p = it.Cfg.Path;
-            if (File.Exists(p) || Directory.Exists(p)) Process.Start("explorer.exe", "/select,\"" + p + "\"")?.Dispose();
-        }
-        catch { }
+        string p = it.Cfg.Path;
+        if (!it.IsStack && (File.Exists(p) || Directory.Exists(p))) Shell.ShowInExplorer(p);
     }
 
     // ---------------- Test screenshot (--screenshot) ----------------

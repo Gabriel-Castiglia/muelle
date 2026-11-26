@@ -22,7 +22,7 @@ internal static class Native
     // ---- AppBar ----
     public const uint ABM_NEW = 0, ABM_REMOVE = 1, ABM_QUERYPOS = 2, ABM_SETPOS = 3,
                       ABM_ACTIVATE = 6, ABM_WINDOWPOSCHANGED = 9;
-    public const int ABN_STATECHANGE = 0, ABN_POSCHANGED = 1, ABN_FULLSCREENAPP = 2;
+    public const int ABN_POSCHANGED = 1, ABN_FULLSCREENAPP = 2;
     public const uint ABE_LEFT = 0, ABE_TOP = 1, ABE_RIGHT = 2, ABE_BOTTOM = 3;
 
     [StructLayout(LayoutKind.Sequential)]
@@ -91,10 +91,9 @@ internal static class Native
     public const long WS_CAPTION = 0x00C00000;
     public const long WS_EX_TOOLWINDOW = 0x80, WS_EX_NOACTIVATE = 0x08000000, WS_EX_APPWINDOW = 0x40000;
     public static readonly IntPtr HWND_TOPMOST = new(-1), HWND_NOTOPMOST = new(-2);
-    public const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOACTIVATE = 0x10, SWP_SHOWWINDOW = 0x40;
+    public const uint SWP_NOSIZE = 0x1, SWP_NOMOVE = 0x2, SWP_NOACTIVATE = 0x10;
     public const int SW_RESTORE = 9, SW_MINIMIZE = 6;
-    public const int WM_DISPLAYCHANGE = 0x7E, WM_DPICHANGED = 0x2E0, WM_ACTIVATE = 0x6,
-                     WM_WINDOWPOSCHANGED = 0x47, WM_SETTINGCHANGE = 0x1A;
+    public const int WM_DISPLAYCHANGE = 0x7E, WM_DPICHANGED = 0x2E0, WM_ACTIVATE = 0x6, WM_WINDOWPOSCHANGED = 0x47;
 
     [DllImport("user32.dll", EntryPoint = "GetWindowLongPtrW")]
     public static extern IntPtr GetWindowLongPtr(IntPtr hWnd, int index);
@@ -153,6 +152,7 @@ internal static class Native
     [DllImport("kernel32.dll")]
     public static extern bool CloseHandle(IntPtr h);
 
+    /// <summary>Full path of a process's executable, or null if the process cannot be opened.</summary>
     public static string ProcessImagePath(uint pid)
     {
         IntPtr h = OpenProcess(0x1000 /* QUERY_LIMITED_INFORMATION */, false, pid);
@@ -187,6 +187,7 @@ internal static class Native
         window.Left <= monitor.Left && window.Top <= monitor.Top &&
         window.Right >= monitor.Right && window.Bottom >= monitor.Bottom;
 
+    /// <summary>Window class name of a window (for example "Shell_TrayWnd" for the taskbar).</summary>
     public static string ClassOf(IntPtr hWnd)
     {
         var sb = new StringBuilder(256);

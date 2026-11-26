@@ -500,6 +500,13 @@ internal static class Shell
         finally { Marshal.ReleaseComObject(link); }
     }
 
+    /// <summary>
+    /// An icon chosen by hand (in the settings, or in a shortcut's properties): an .ico is read straight from the file,
+    /// since the shell's icon cache keeps the old picture of a file that changed; anything else through the shell.
+    /// </summary>
+    public static ImageSource LoadChosenIcon(string path) =>
+        path.EndsWith(".ico", StringComparison.OrdinalIgnoreCase) ? LoadIconFile(path) : LoadIcon(path, 256);
+
     /// <summary>An .ico read straight from the file, at the size nearest to <paramref name="px"/>.</summary>
     public static ImageSource LoadIconFile(string ico, int px = 256)
     {
@@ -541,6 +548,20 @@ internal static class Shell
             return sig + "|" + Date(exe) + "|" + themed + ":" + Date(themed);
         }
         catch { return ""; }
+    }
+
+    /// <summary>Opens a file, folder or web address with the program Windows associates with it; errors are ignored.</summary>
+    public static void Open(string target)
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(target) { UseShellExecute = true })?.Dispose(); }
+        catch { }
+    }
+
+    /// <summary>Opens an Explorer window with the file or folder selected; errors are ignored.</summary>
+    public static void ShowInExplorer(string path)
+    {
+        try { System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + path + "\"")?.Dispose(); }
+        catch { }
     }
 
     /// <summary>Actual program a .lnk points to (or the file itself if it is not a shortcut).</summary>
@@ -725,6 +746,15 @@ internal static class WindowTracker
     [DllImport("ole32.dll")]
     private static extern int PropVariantClear(ref PROPVARIANT pv);
 
+    /// <summary>The System.AppUserModel.ID property of a property store (a window's or a shell link's), or null.</summary>
+    private static string StoredAumid(IPropertyStore store)
+    {
+        var key = new PROPERTYKEY { fmtid = new Guid("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3"), pid = 5 };
+        if (store.GetValue(ref key, out var pv) != 0) return null;
+        try { return pv.vt == 31 /* VT_LPWSTR */ ? Marshal.PtrToStringUni(pv.p) : null; }
+        finally { PropVariantClear(ref pv); }
+    }
+
     /// <summary>AppUserModelID explicitly assigned to the window (used by UWP apps and some desktop apps).</summary>
     private static string WindowAumid(IntPtr hwnd)
     {
@@ -733,10 +763,7 @@ internal static class WindowTracker
         {
             var iid = typeof(IPropertyStore).GUID;
             if (SHGetPropertyStoreForWindow(hwnd, ref iid, out store) != 0 || store == null) return null;
-            var key = new PROPERTYKEY { fmtid = new Guid("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3"), pid = 5 };
-            if (store.GetValue(ref key, out var pv) != 0) return null;
-            try { return pv.vt == 31 /* VT_LPWSTR */ ? Marshal.PtrToStringUni(pv.p) : null; }
-            finally { PropVariantClear(ref pv); }
+            return StoredAumid(store);
         }
         catch { return null; }
         finally { if (store != null) Marshal.ReleaseComObject(store); }
@@ -745,14 +772,7 @@ internal static class WindowTracker
     /// <summary>AppUserModelID stored in a shell link (System.AppUserModel.ID), or null.</summary>
     public static string LinkAumid(object link)
     {
-        try
-        {
-            if (link is not IPropertyStore store) return null;
-            var key = new PROPERTYKEY { fmtid = new Guid("9F4C2855-9F79-4B39-A8D0-E1D42DE1D5F3"), pid = 5 };
-            if (store.GetValue(ref key, out var pv) != 0) return null;
-            try { return pv.vt == 31 /* VT_LPWSTR */ ? Marshal.PtrToStringUni(pv.p) : null; }
-            finally { PropVariantClear(ref pv); }
-        }
+        try { return link is IPropertyStore store ? StoredAumid(store) : null; }
         catch { return null; }
     }
 

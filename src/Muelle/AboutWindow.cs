@@ -11,8 +11,6 @@
 //  It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for details.
 //
 
-using System.Diagnostics;
-using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
@@ -50,8 +48,7 @@ internal sealed class AboutWindow : Window
     private void Build()
     {
         Title = tr("Acerca de Muelle", "About Muelle", "Muelle について");
-        var version = Assembly.GetExecutingAssembly().GetName().Version;
-        string versionText = version == null ? "" : $"{version.Major}.{version.Minor}.{Math.Max(0, version.Build)}";
+        string versionText = Updates.Current.ToString();
 
         var root = new StackPanel { Margin = new Thickness(28, 24, 28, 20) };
 
@@ -69,14 +66,14 @@ internal sealed class AboutWindow : Window
 
         root.Children.Add(Line(tr("«Muelle» es la palabra castellana para un muelle de puerto, en inglés «dock»: el lugar donde amarran los barcos.",
                                   "\"Muelle\" is the Spanish word for a dock, the place where ships moor.", "「Muelle」はスペイン語で埠頭 (ドック)、船が係留する場所を意味します。"), null, 4));
-        root.Children.Add(Muted(tr("Ícono: el barco de tres palos del grabado de Frans Huys según Pieter Bruegel el Viejo (hacia 1561-1565), Museo Metropolitano de Arte, dominio público.",
+        root.Children.Add(Muted(tr("Icono: el barco de tres palos del grabado de Frans Huys según Pieter Bruegel el Viejo (hacia 1561-1565), Museo Metropolitano de Arte, dominio público.",
                                    "Icon: the three-master of Frans Huys's engraving after Pieter Bruegel the Elder (c. 1561-1565), The Metropolitan Museum of Art, public domain.", "アイコン: ピーテル・ブリューゲル (父) の原画によるフランス・ハイスの版画 (1561-1565 年頃) の三本マストの帆船。メトロポリタン美術館、パブリックドメイン。"),
                                 12, new Thickness(0, 0, 0, 10)));
         root.Children.Add(Line(tr("Creado por " + Author + " (6 de noviembre de 2026).", "Created by " + Author + " (November 6, 2026).", "作者: " + Author + " (2026 年 11 月 6 日)。")));
         root.Children.Add(Line("Copyright © 2026 " + Author + "."));
         var repo = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) };
         var link = new Hyperlink(new Run(Repository.Replace("https://", ""))) { NavigateUri = new Uri(Repository) };
-        link.RequestNavigate += (s, e) => Open(Repository);
+        link.RequestNavigate += (s, e) => Shell.Open(Repository);
         repo.Inlines.Add(new Run(tr("Código fuente: ", "Source code: ", "ソースコード: ")));
         repo.Inlines.Add(link);
         root.Children.Add(repo);
@@ -103,7 +100,7 @@ internal sealed class AboutWindow : Window
         {
             check.IsEnabled = false;
             status.Text = tr("Consultando GitHub…", "Asking GitHub…", "GitHub に問い合わせています…");
-            status.Text = await Updates.CheckAsync(manager, interactive: false);
+            status.Text = await Updates.CheckAsync(manager);
             check.IsEnabled = true;
         };
         DockPanel.SetDock(check, Dock.Left);
@@ -113,7 +110,7 @@ internal sealed class AboutWindow : Window
 
         var buttons = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right };
         buttons.Children.Add(Button(tr("Ver licencia", "View license", "ライセンスを表示"), ShowLicense));
-        buttons.Children.Add(Button("gnu.org/licenses", () => Open(LicenseUrl)));
+        buttons.Children.Add(Button("gnu.org/licenses", () => Shell.Open(LicenseUrl)));
         var close = Button(tr("Cerrar", "Close", "閉じる"), Close);
         close.IsDefault = true;
         close.IsCancel = true;
@@ -130,12 +127,7 @@ internal sealed class AboutWindow : Window
         if (icon != null) icon.Source = Theme.Icon(null, 256);
     }
 
-    private static TextBlock Muted(string text, double size, Thickness margin)
-    {
-        var t = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, FontSize = size, Margin = margin };
-        t.SetResourceReference(TextBlock.ForegroundProperty, "Mu.TextMuted");
-        return t;
-    }
+    private static TextBlock Muted(string text, double size, Thickness margin) => Ui.Muted(text, size, margin);
 
     private static TextBlock Line(string text, FontWeight? weight = null, double after = 4) => new()
     {
@@ -143,6 +135,7 @@ internal sealed class AboutWindow : Window
         FontWeight = weight ?? FontWeights.Normal,
     };
 
+    /// <summary>A button of the bottom rows, spaced from the one on its left; <paramref name="action"/> may be set later.</summary>
     private static Button Button(string text, Action action)
     {
         var b = new Button { Content = text, Margin = new Thickness(8, 0, 0, 0) };
@@ -154,11 +147,6 @@ internal sealed class AboutWindow : Window
     private static void ShowLicense()
     {
         string file = Path.Combine(AppContext.BaseDirectory, "LICENSE.txt");
-        Open(File.Exists(file) ? file : LicenseUrl);
-    }
-
-    private static void Open(string target)
-    {
-        try { Process.Start(new ProcessStartInfo(target) { UseShellExecute = true })?.Dispose(); } catch { }
+        Shell.Open(File.Exists(file) ? file : LicenseUrl);
     }
 }

@@ -11,7 +11,6 @@
 //  It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for details.
 //
 
-using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -167,8 +166,7 @@ internal sealed class SettingsWindow : Window
         for (int i = 0; i < monitors.Count; i++)
         {
             var m = monitors[i];
-            monitorCombo.Items.Add($"{tr("Pantalla", "Screen", "画面")} {i + 1}  ·  {m.Bounds.Width}×{m.Bounds.Height}  ·  {Math.Round(m.Scale * 100)} %"
-                                   + (m.Primary ? tr("  (principal)", "  (primary)", " (メイン)") : ""));
+            monitorCombo.Items.Add(ScreenLabel(i, m, withScale: true));
             if (string.Equals(m.Device, Config.Monitor, StringComparison.OrdinalIgnoreCase)) monitorCombo.SelectedIndex = i;
         }
         // Without a specific screen chosen, the list shows the primary one (only a display: the handler below
@@ -324,7 +322,7 @@ internal sealed class SettingsWindow : Window
         }
         Mark();
         box.Children.Add(tiles);
-        box.Children.Add(Hint(tr("El color se usa en el ícono de las ventanas de Muelle, en el punto de las apps abiertas y en los controles.",
+        box.Children.Add(Hint(tr("El color se usa en el icono de las ventanas de Muelle, en el punto de las apps abiertas y en los controles.",
                                  "The colour is used for the icon of Muelle's windows, the dot of open apps and the controls.", "この色は Muelle のウィンドウのアイコン、起動中のアプリの点、コントロールに使われます。"),
                               new Thickness(0, 2, 0, 0)));
         return card;
@@ -362,7 +360,7 @@ internal sealed class SettingsWindow : Window
             for (int i = 0; i < lists.Count; i++)
             {
                 var m = lists[i].Monitor;
-                screen.Items.Add($"{tr("Pantalla", "Screen", "画面")} {i + 1}  ·  {m.Bounds.Width}×{m.Bounds.Height}" + (m.Primary ? tr("  (principal)", "  (primary)", " (メイン)") : ""));
+                screen.Items.Add(ScreenLabel(i, m, withScale: false));
             }
             editing = Math.Clamp(editing, 0, lists.Count - 1);
             screen.SelectedIndex = editing;
@@ -371,14 +369,16 @@ internal sealed class SettingsWindow : Window
             screenRow.Margin = new Thickness(0, 8, 0, 0);
             box.Children.Add(screenRow);
         }
+        // Editing the selected stack: a double click on it or "Edit stack…".
+        void EditSelected() => WithSelected((it, i) => { if (it.IsStack) StackWindow.Edit(manager, CurrentList, it, i); });
         appList = new ListBox { Height = 150, Margin = new Thickness(0, 6, 0, 8) };
-        appList.MouseDoubleClick += (s, e) => WithSelected((it, i) => { if (it.IsStack) StackWindow.Edit(manager, CurrentList, it, i); });
+        appList.MouseDoubleClick += (s, e) => EditSelected();
         box.Children.Add(appList);
 
         var buttons = new WrapPanel();
         buttons.Children.Add(Button(tr("Agregar…", "Add…", "追加…"), () => { manager.AddWithDialog(CurrentList); RefreshApps(); }));
         buttons.Children.Add(Button(tr("Nueva pila…", "New stack…", "新しいスタック…"), () => StackWindow.Edit(manager, CurrentList, null, DockManager.PinnedCountOf(CurrentList))));
-        buttons.Children.Add(Button(tr("Editar pila…", "Edit stack…", "スタックを編集…"), () => WithSelected((it, i) => { if (it.IsStack) StackWindow.Edit(manager, CurrentList, it, i); })));
+        buttons.Children.Add(Button(tr("Editar pila…", "Edit stack…", "スタックを編集…"), EditSelected));
         buttons.Children.Add(Button(tr("Quitar", "Remove", "削除"), () => WithSelected((it, i) => { CurrentList.RemoveAt(i); ItemsChanged(i - 1); })));
         buttons.Children.Add(Button(tr("Subir", "Move up", "上へ"), () => WithSelected((it, i) =>
         {
@@ -402,7 +402,7 @@ internal sealed class SettingsWindow : Window
         var folder = Button(tr("Abrir carpeta de configuración", "Open settings folder", "設定フォルダーを開く"), () =>
         {
             manager.FlushConfig();
-            try { Process.Start("explorer.exe", "/select,\"" + DockConfig.FilePath + "\"")?.Dispose(); } catch { }
+            Shell.ShowInExplorer(DockConfig.FilePath);
         });
         var aboutBtn = Button(tr("Acerca de…", "About…", "バージョン情報…"), manager.OpenAbout);
         var close = Button(tr("Cerrar", "Close", "閉じる"), Close);
@@ -487,16 +487,11 @@ internal sealed class SettingsWindow : Window
     }
 
     /// <summary>A short explanation in the muted colour of the theme.</summary>
-    private static TextBlock Hint(string text, Thickness margin)
-    {
-        var t = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, FontSize = 11.5, Margin = margin };
-        t.SetResourceReference(TextBlock.ForegroundProperty, "Mu.TextMuted");
-        return t;
-    }
+    private static TextBlock Hint(string text, Thickness margin) => Ui.Muted(text, 11.5, margin);
 
     /// <summary>
-    /// A label, a control that takes the remaining width and an optional value on the right. The label
-    /// column fits the longest label of either language, so the row adapts to the window width.
+    /// A label, a control that takes the remaining width and an optional value on the right. The label column has a
+    /// fixed width and its text wraps, so a long label in any language fits and the row adapts to the window width.
     /// </summary>
     private static Grid Row(string label, FrameworkElement control, FrameworkElement value)
     {
@@ -520,6 +515,12 @@ internal sealed class SettingsWindow : Window
 
     private static TextBlock Value(string text) => new() { Text = text, VerticalAlignment = VerticalAlignment.Center };
 
+    /// <summary>How a screen is named in the lists: "Screen 2 · 1920×1080 (· 125 %) (primary)".</summary>
+    private static string ScreenLabel(int index, MonitorInfo m, bool withScale) =>
+        $"{tr("Pantalla", "Screen", "画面")} {index + 1}  ·  {m.Bounds.Width}×{m.Bounds.Height}"
+        + (withScale ? $"  ·  {Math.Round(m.Scale * 100)} %" : "")
+        + (m.Primary ? tr("  (principal)", "  (primary)", " (メイン)") : "");
+
     private static RadioButton Radio(string group, string text, string hint, bool isChecked, Action onChecked)
     {
         var content = new StackPanel();
@@ -541,10 +542,5 @@ internal sealed class SettingsWindow : Window
         return cb;
     }
 
-    private static Button Button(string text, Action onClick)
-    {
-        var b = new Button { Content = text, Margin = new Thickness(0, 0, 8, 6) };
-        b.Click += (s, e) => onClick();
-        return b;
-    }
+    private static Button Button(string text, Action onClick) => Ui.Button(text, onClick);
 }

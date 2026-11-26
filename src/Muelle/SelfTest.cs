@@ -165,7 +165,7 @@ internal static class SelfTest
         foreach (var f in Directory.GetFiles(DockConfig.Folder, "config*.json")) File.Delete(f);
     }
 
-    // ---------------- Screens ----------------
+    // ---------------- Fullscreen apps ----------------
     private static void Fullscreen()
     {
         var mon = new Native.RECT(0, 0, 1920, 1080);
@@ -178,6 +178,7 @@ internal static class SelfTest
         Check("without a screen, nothing is fullscreen", !Native.LooksFullscreen(new(0, 0, 1920, 1080), popup, default));
     }
 
+    // ---------------- Screens ----------------
     private static void Screens()
     {
         var list = new List<MonitorDockConfig>
@@ -246,7 +247,7 @@ internal static class SelfTest
         return list.Count;
     }
 
-    // ---------------- Stacks ----------------
+    // ---------------- Icons that follow the app ----------------
     /// <summary>
     /// A program whose shortcuts name an icon of its own folder (as Vigía does with the colour chosen for it): the
     /// dock shows that icon, follows it when it changes, and leaves alone an icon chosen by hand from elsewhere.
@@ -299,6 +300,8 @@ internal static class SelfTest
             Check("the dock shows the icon chosen for its shortcut, not the program's", (DockItem.From(new DockItemConfig { Path = mine }).Icon as BitmapSource)?.PixelWidth == 36);
             Check("an icon chosen in the settings wins over every other",
                   (DockItem.From(new DockItemConfig { Path = exe, Icon = elsewhere }).Icon as BitmapSource)?.PixelWidth == 36);
+            Check("the .ico chosen for a stack is read from its file too, not from the shell's icon cache",
+                  (DockItem.From(new DockItemConfig { Name = "S", Stack = new() { Item("notepad.exe") }, Icon = elsewhere }).Icon as BitmapSource)?.PixelWidth == 36);
         }
         finally
         {
@@ -326,6 +329,7 @@ internal static class SelfTest
         w.Write(png);
     }
 
+    // ---------------- Stacks ----------------
     private static void Stacks()
     {
         WriteConfig(c => { c.Items = new() { Item("notepad.exe"), Item("calc.exe"), Item("mspaint.exe") }; c.ShowRunningApps = false; });
@@ -387,6 +391,9 @@ internal static class SelfTest
         Check("the three languages round-trip through their codes", Loc.All.All(l => Loc.FromCode(Loc.Code(l.Lang)) == l.Lang)
               && Loc.FromCode("xx") == UiLanguage.En);
         Check("a stack never counts as running", !saved.Running);
+        var add = Ui.AppsDialog("x");
+        Check("the add dialog takes several files and keeps a shortcut as itself", add.Multiselect && !add.DereferenceLinks
+              && add.Filter.Contains("*.lnk") && add.Filter.Contains("*.exe"));
     }
 
     // ---------------- Updates ----------------

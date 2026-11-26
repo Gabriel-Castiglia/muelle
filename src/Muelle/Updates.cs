@@ -35,7 +35,7 @@ internal sealed class Release
 }
 
 /// <summary>
-/// Updates that install themselves. Once a day (if the option is on) and on request (dock menu, About Muelle…),
+/// Updates that install themselves. Once a day (if the option is on) and on request (About Muelle…, "Check for updates"),
 /// Muelle asks GitHub for its latest release. When it is newer, one question: update now, see what is new, or later.
 /// Then everything happens alone: the release's SHA256SUMS.txt must carry the author's signature (release.sig,
 /// ReleaseSignature.cs: a release without a valid one is never installed), the setup is downloaded and checked
@@ -125,10 +125,10 @@ internal static class Updates
     }
 
     /// <summary>
-    /// Asks GitHub and, if there is a newer version, asks the user what to do. Returns the text for a status line
-    /// (About Muelle…). <paramref name="interactive"/>: on request, so "up to date" and errors are said too.
+    /// Asks GitHub and, if there is a newer version, asks the user what to do (<see cref="UpdateWindow"/>). Returns the
+    /// text for a status line (About Muelle…): up to date, a newer version, or GitHub could not be reached.
     /// </summary>
-    public static async Task<string> CheckAsync(DockManager manager, bool interactive)
+    public static async Task<string> CheckAsync(DockManager manager)
     {
         if (busy) return tr("Ya se está actualizando.", "An update is already under way.", "既に更新中です。");
         LastCheckReached = false;
@@ -137,26 +137,15 @@ internal static class Updates
             var latest = await LatestAsync();
             LastCheckReached = true;
             if (!IsNewer(latest.Tag, Current.ToString()))
-            {
-                string same = tr($"Tenés la última versión ({Current}).", $"You have the latest version ({Current}).", $"最新バージョン ({Current}) を使用しています。");
-                if (interactive) MessageBox.Show(same, "Muelle", MessageBoxButton.OK, MessageBoxImage.Information);
-                return same;
-            }
+                return tr($"Tenés la última versión ({Current}).", $"You have the latest version ({Current}).", $"最新バージョン ({Current}) を使用しています。");
             UpdateWindow.Ask(manager, latest);
             return tr($"Está la versión {latest.Tag}.", $"Version {latest.Tag} is out.", $"バージョン {latest.Tag} が公開されています。");
         }
         catch (Exception ex)
         {
             Program.Log("Could not check for a new version: " + ex.Message);
-            string failed = tr("No se pudo consultar GitHub.", "GitHub could not be reached.", "GitHub に接続できませんでした。");
-            if (interactive) MessageBox.Show(failed + "\n\n" + ex.Message, "Muelle", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return failed;
+            return tr("No se pudo consultar GitHub.", "GitHub could not be reached.", "GitHub に接続できませんでした。");
         }
-    }
-
-    public static void OpenPage(string page = Page)
-    {
-        try { Process.Start(new ProcessStartInfo(page) { UseShellExecute = true })?.Dispose(); } catch { }
     }
 
     /// <summary>
@@ -192,8 +181,8 @@ internal static class Updates
             using (var http = NewHttp(TimeSpan.FromMinutes(15)))
             {
                 progress(tr("Comprobando la versión nueva…", "Checking the new version…", "新しいバージョンを確認しています…"));
-                // the author's signature of the hashes first (ReleaseSignature.cs): without a valid one nothing is
-                // downloaded or run, so a release put on the page by someone else never installs itself
+                // The author's signature of the hashes first (ReleaseSignature.cs): without a valid one nothing is
+                // downloaded or run, so a release put on the page by someone else never installs itself.
                 var signature = await http.GetStringAsync(release.SigUrl);
                 var sums = await http.GetByteArrayAsync(release.SumsUrl);
                 if (!ReleaseSignature.Valid(sums, signature))
@@ -380,8 +369,10 @@ internal sealed class UpdateWindow : Window
         Topmost = true;
         Theme.Attach(this);
         Build();
+        // A change of language or of the accent colour (the icon in the header) rebuilds the content.
         Loc.Changed += Build;
-        Closed += (s, e) => Loc.Changed -= Build;
+        Theme.Changed += Build;
+        Closed += (s, e) => { Loc.Changed -= Build; Theme.Changed -= Build; };
     }
 
     private void Build()
@@ -405,7 +396,7 @@ internal sealed class UpdateWindow : Window
         if (done)
         {
             root.Children.Add(Text(tr("Lo que cambió está en la página del release, en GitHub.", "What changed is on the release page, on GitHub.", "変更内容は GitHub のリリースページにあります。")));
-            buttons.Children.Add(Button(tr("Ver novedades", "What is new", "新機能を見る"), false, () => { Updates.OpenPage(); Close(); }));
+            buttons.Children.Add(Button(tr("Ver novedades", "What is new", "新機能を見る"), false, () => { Shell.Open(Updates.Page); Close(); }));
             buttons.Children.Add(Button(tr("Cerrar", "Close", "閉じる"), true, Close));
         }
         else
@@ -422,7 +413,7 @@ internal sealed class UpdateWindow : Window
             status.SetResourceReference(TextBlock.ForegroundProperty, "Mu.TextMuted");
             root.Children.Add(status);
             buttons.Children.Add(Button(tr("Más tarde", "Later", "後で"), false, Close, cancel: true));
-            buttons.Children.Add(Button(tr("Ver novedades", "What is new", "新機能を見る"), false, () => { Updates.OpenPage(release?.Page ?? Updates.Page); Close(); }));
+            buttons.Children.Add(Button(tr("Ver novedades", "What is new", "新機能を見る"), false, () => { Shell.Open(release?.Page ?? Updates.Page); Close(); }));
             if (auto) buttons.Children.Add(Button(tr("Actualizar ahora", "Update now", "今すぐ更新"), true, Install));
         }
         root.Children.Add(buttons);

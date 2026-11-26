@@ -31,7 +31,7 @@ internal sealed class DockManager
     public bool IsScreenshot => screenshotPath != null;
 
     private readonly string screenshotPath;
-    /// <summary>Window rendered by a test screenshot: "dock", "settings" or "about".</summary>
+    /// <summary>Window rendered by a test screenshot: "dock", "settings", "about", "update", "menu", "stack" or "stack-editor".</summary>
     private readonly string screenshotWindow;
     private readonly List<DockWindow> windows = new();
     private readonly DispatcherTimer rebuildTimer, runningTimer, saveTimer;
@@ -61,7 +61,13 @@ internal sealed class DockManager
             {
                 bool on = DockConfig.IsStartupEnabled();
                 if (on) DockConfig.RefreshStartup(); // the path, if the executable moved
-                ui.BeginInvoke(() => Config.StartWithWindows = on);
+                ui.BeginInvoke(() =>
+                {
+                    if (Config.StartWithWindows == on) return;
+                    Config.StartWithWindows = on;
+                    // A settings window opened meanwhile (--settings) would show the stored value instead.
+                    settings?.Rebuild();
+                });
             });
         }
         foreach (var c in Config.Items) Items.Add(DockItem.From(c));
@@ -111,7 +117,7 @@ internal sealed class DockManager
             updateTimer.Interval = TimeSpan.FromHours(1);
             if (IsScreenshot || exiting || checkingUpdates || !Config.CheckUpdates || DateTime.UtcNow - Config.LastUpdateCheck < TimeSpan.FromHours(24)) return;
             checkingUpdates = true;
-            try { await Updates.CheckAsync(this, interactive: false); }
+            try { await Updates.CheckAsync(this); }
             finally { checkingUpdates = false; }
             // Only a check that reached GitHub counts for the day: without network yet (a laptop just started) it is
             // tried again the next hour, instead of the day being lost.
@@ -142,7 +148,7 @@ internal sealed class DockManager
     private bool checkingUpdates;
 
     /// <summary>
-    /// An app that was updated (also Store apps), that changed the colour of its icon (Vigía), or whose shortcut or
+    /// An app that was updated (also Store apps), that changed the colour of its icon (as Vigía does), or whose shortcut or
     /// chosen icon changed, shows its new icon without restarting the dock: every 15 s the dates its icons were read
     /// from are compared (a few file dates, no icon is read unless one changed). Returns how many icons were read again.
     /// </summary>
@@ -341,7 +347,7 @@ internal sealed class DockManager
             Config.MonitorDocks.Add(dock);
             changed = true;
         }
-        if (dock.Id != (id ?? "") && !string.IsNullOrEmpty(id) || dock.Device != (device ?? "") || dock.Width != width || dock.Height != height)
+        if ((dock.Id != (id ?? "") && !string.IsNullOrEmpty(id)) || dock.Device != (device ?? "") || dock.Width != width || dock.Height != height)
         {
             if (!string.IsNullOrEmpty(id)) dock.Id = id;
             dock.Device = device ?? ""; dock.Width = width; dock.Height = height;
@@ -449,9 +455,6 @@ internal sealed class DockManager
     public bool IsShown(List<DockItem> list) =>
         windows.Count == 0 || (Config.PerMonitor ? monitorLists.ContainsValue(list) : list == Items);
 
-    /// <summary>Number of pinned apps (they are at the start of <see cref="Items"/>).</summary>
-    public int PinnedCount => PinnedCountOf(Items);
-
     /// <summary>Number of pinned apps of a list (they are at its start).</summary>
     public static int PinnedCountOf(List<DockItem> list) => list.Count(i => !i.Transient);
 
@@ -529,7 +532,7 @@ internal sealed class DockManager
     /// Uses the windows from the last <see cref="WindowTracker.Snapshot"/>. Returns true if the list changed. An app
     /// kept in a stack counts as pinned.
     /// </summary>
-    private bool SyncOpenApps(List<DockItem> Items)
+    private bool SyncOpenApps(List<DockItem> list)
     {
         bool changed = false;
         var open = Config.ShowRunningApps && !IsScreenshot ? WindowTracker.LastApps : new List<WindowTracker.OpenApp>();
@@ -544,11 +547,11 @@ internal sealed class DockManager
         }
 
         bool Pinned(WindowTracker.OpenApp app) =>
-            Items.Any(it => Covers(it, app) || (it.Children != null && it.Children.Any(c => Covers(c, app))));
+            list.Any(it => Covers(it, app) || (it.Children != null && it.Children.Any(c => Covers(c, app))));
 
         // Remove those that no longer have windows.
-        for (int i = Items.Count - 1; i >= 0; i--)
-            if (Items[i].Transient && !open.Any(a => Covers(Items[i], a))) { Items.RemoveAt(i); changed = true; }
+        for (int i = list.Count - 1; i >= 0; i--)
+            if (list[i].Transient && !open.Any(a => Covers(list[i], a))) { list.RemoveAt(i); changed = true; }
 
         // Add the new ones, in the order they appear.
         foreach (var app in open)
@@ -560,7 +563,7 @@ internal sealed class DockManager
             var it = DockItem.From(new DockItemConfig { Name = DockItem.NiceName(path), Path = path });
             it.Transient = true;
             it.Running = true;
-            Items.Add(it);
+            list.Add(it);
             changed = true;
         }
         return changed;
@@ -644,6 +647,7 @@ internal sealed class DockManager
         exiting = true;
         runningTimer.Stop();
         updateTimer?.Stop();
+        iconTimer?.Stop();
         FlushConfig();
         settings?.Close();
         about?.Close();

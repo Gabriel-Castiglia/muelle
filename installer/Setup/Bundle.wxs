@@ -12,7 +12,7 @@
 -->
 <!--
   muelle-setup.exe: a WiX bundle that installs the MSI with Muelle's own setup window (installer\SetupUI),
-  in English or Spanish, chosen from a menu. The same window opens to uninstall from "Installed apps".
+  in English, Spanish or Japanese, chosen from a menu. The same window opens to uninstall from "Installed apps".
   Installing a newer version upgrades the old one.
 -->
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">

@@ -21,7 +21,7 @@ internal static class Program
     // thread itself (see SetupApplication.Run). An STA main thread makes BootstrapperApplicationRun fail.
     private static int Main(string[] args)
     {
-        // Test option (not for users): "--screenshot <file.png> --page <page> --language en|es" renders one
+        // Test option (not for users): "--screenshot <file.png> --page <page> --language en|es|ja" renders one
         // page of the setup window to a PNG, without the setup engine, and exits. WPF needs an STA thread.
         int shot = Array.IndexOf(args, "--screenshot");
         if (shot >= 0 && shot + 1 < args.Length)

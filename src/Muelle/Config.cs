@@ -544,7 +544,7 @@ internal sealed class DockItem
 
     private string autoName;
 
-    /// <summary>Names of well-known Windows programs and shortcuts, in both interface languages.</summary>
+    /// <summary>Names of well-known Windows programs and shortcuts, in the interface language.</summary>
     private static string KnownName(string path)
     {
         if (path.EndsWith("!App", StringComparison.OrdinalIgnoreCase) && path.Contains("WindowsTerminal", StringComparison.OrdinalIgnoreCase))
@@ -574,20 +574,19 @@ internal sealed class DockItem
         if (cfg.IsStack)
         {
             it.Children = cfg.Stack.Select(From).ToList();
-            if (!string.IsNullOrWhiteSpace(cfg.Icon)) it.Icon = Shell.LoadIcon(cfg.Icon, 256);
+            if (!string.IsNullOrWhiteSpace(cfg.Icon)) it.Icon = Shell.LoadChosenIcon(cfg.Icon);
             it.Icon ??= StackIcon(it.Children.Select(c => c.Icon));
             return it;
         }
         it.ExePath = Shell.ResolveTarget(cfg.Path);
         // An icon chosen by hand wins: the one of this item in the settings, or the one set on this very shortcut.
-        if (!string.IsNullOrWhiteSpace(cfg.Icon))
-            it.Icon = cfg.Icon.EndsWith(".ico", StringComparison.OrdinalIgnoreCase) ? Shell.LoadIconFile(cfg.Icon) : Shell.LoadIcon(cfg.Icon, 256);
+        if (!string.IsNullOrWhiteSpace(cfg.Icon)) it.Icon = Shell.LoadChosenIcon(cfg.Icon);
         if (it.Icon == null && Shell.ChosenIconPath(cfg.Path) is string chosen)
             it.Icon = (chosen.EndsWith(".ico", StringComparison.OrdinalIgnoreCase) ? Shell.LoadIconFile(chosen) : null) ?? Shell.LoadIcon(cfg.Path, 256);
         // Packaged apps: their own sharpest logo (Windows may give the dock a 24 px one).
         if (it.Icon == null && it.ExePath != null && it.ExePath.StartsWith(WindowTracker.AumidPrefix, StringComparison.Ordinal))
             it.Icon = Shell.LoadPackagedIcon(it.ExePath.Substring(WindowTracker.AumidPrefix.Length));
-        // The icon the program gives its own shortcuts (Vigía's chosen colour), read from its file.
+        // The icon the program gives its own shortcuts (for example the colour chosen in Vigía), read from its file.
         if (it.Icon == null && Shell.ThemedIconPath(it.ExePath) is string themed) it.Icon = Shell.LoadIconFile(themed);
         it.Icon ??= Shell.LoadSmallNativeIcon(it.ExePath) ?? Shell.LoadIcon(cfg.Path, 256);
         if (it.Icon == null && it.ExePath != null && it.ExePath != cfg.Path) it.Icon = Shell.LoadIcon(it.ExePath, 256);
