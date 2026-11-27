@@ -13,7 +13,9 @@
 
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Automation;
 using System.Windows.Controls.Primitives;
+using System.Windows.Input;
 using System.Windows.Media;
 using static Muelle.Loc;
 
@@ -31,11 +33,20 @@ internal sealed class SettingsWindow : Window
 
     // Controls that other options enable, disable or refresh; created again on every rebuild.
     private ListBox appList;
+    private CheckBox lockCheck;
     private Slider zoomSlider;
     private TextBlock zoomValue;
     private ComboBox monitorCombo;
     private StackPanel backdropGroup, zoomRow, panelRow;
     private ScrollViewer scroller;
+    /// <summary>The buttons that change the dock's icons: disabled while the dock is locked.</summary>
+    private readonly List<Button> editButtons = new();
+    internal IReadOnlyList<Button> EditButtons => editButtons;
+    /// <summary>The "Dock applications" card (a test screenshot of the locked dock shows only this card).</summary>
+    public FrameworkElement AppsCard { get; private set; }
+    /// <summary>The tile of the chosen colour (a test screenshot gives it the keyboard focus, to show its frame).</summary>
+    public Control AccentTile => accentTile;
+    private RadioButton accentTile;
     /// <summary>Which list the "Dock applications" section edits, when each screen has its own (index in <see cref="DockManager.EditableLists"/>).</summary>
     private int editing;
     private List<DockItem> CurrentList
@@ -108,7 +119,7 @@ internal sealed class SettingsWindow : Window
     {
         var (box, card) = Section(tr("Estilo", "Style", "スタイル"));
         box.Children.Add(Radio("style", tr("Dock flotante (estilo Mac)", "Floating dock (Mac style)", "フローティングドック (Mac 風)"),
-            tr("Iconos centrados que se amplían al pasar el puntero.", "Centered icons that grow under the pointer.", "中央に並んだアイコンがポインターの下で拡大します。"),
+            tr("Iconos centrados que se amplían al pasar el puntero.", "Centred icons that grow under the pointer.", "中央に並んだアイコンがポインターの下で拡大します。"),
             Config.Style == DockStyle.Dock, () => { Config.Style = DockStyle.Dock; Apply(); }));
         box.Children.Add(Radio("style", tr("Panel fijo (estilo Ubuntu)", "Fixed panel (Ubuntu style)", "固定パネル (Ubuntu 風)"),
             tr("Barra continua de borde a borde, con los iconos alineados al inicio.",
@@ -241,11 +252,11 @@ internal sealed class SettingsWindow : Window
 
     private UIElement BuildBehavior()
     {
-        var (box, card) = Section(tr("Comportamiento", "Behavior", "動作"));
+        var (box, card) = Section(tr("Comportamiento", "Behaviour", "動作"));
         box.Children.Add(Check(tr("Reservar su franja de pantalla (las ventanas maximizadas no lo tapan)",
-                                  "Reserve its screen strip (maximized windows do not cover it)", "画面の帯を確保する (最大化したウィンドウで隠れません)"), Config.ReserveSpace,
+                                  "Reserve its screen strip (maximised windows do not cover it)", "画面の帯を確保する (最大化したウィンドウで隠れません)"), Config.ReserveSpace,
             v => { Config.ReserveSpace = v; Apply(); }));
-        box.Children.Add(Hint(tr("Al reservar la franja, Windows reacomoda los iconos del escritorio que quedaban debajo y puede moverlos a otro monitor. Si eso molesta, desmarcar esta opción.",
+        box.Children.Add(Hint(tr("Al reservar la franja, Windows reacomoda los iconos del escritorio que quedaban debajo y puede moverlos a otro monitor. Si te molesta, desactiva esta opción.",
                                  "When the strip is reserved, Windows rearranges the desktop icons that were underneath and may move them to another monitor. If that is a problem, turn this option off.", "帯を確保すると、Windows はその下にあったデスクトップアイコンを並べ替え、別のモニターへ移すことがあります。問題がある場合はこのオプションをオフにしてください。"),
                               new Thickness(46, 0, 0, 6)));
         box.Children.Add(Check(tr("Ocultar automáticamente (aparece al llevar el puntero al borde)",
@@ -256,11 +267,11 @@ internal sealed class SettingsWindow : Window
             v => { Config.ShowRunningApps = v; Apply(); manager.RefreshRunning(); }));
         box.Children.Add(Check(tr("Bloquear dock (los iconos no se pueden agregar, quitar, reordenar, fijar ni renombrar)",
                                   "Lock dock (icons cannot be added, removed, reordered, pinned or renamed)", "ドックをロック (アイコンの追加・削除・並べ替え・固定・名前の変更ができなくなります)"), Config.LockItems,
-            v => manager.SetLocked(v)));
+            v => manager.SetLocked(v), out lockCheck));
         box.Children.Add(Check(tr("Iniciar Muelle al encender Windows", "Start Muelle when Windows starts", "Windows の起動時に Muelle を開始する"), Config.StartWithWindows, v =>
         {
             Config.StartWithWindows = v;
-            DockConfig.SetStartup(v);
+            _ = DockConfig.SetStartupAsync(v);   // off the UI thread: schtasks may take a while
             manager.SaveConfig();
         }));
         box.Children.Add(Check(tr("Buscar versiones nuevas una vez al día (se consulta GitHub; se instalan solo si se acepta)",
@@ -292,35 +303,30 @@ internal sealed class SettingsWindow : Window
         box.Children.Add(segHost);
 
         box.Children.Add(new TextBlock { Text = tr("Color:", "Colour:", "色:"), Margin = new Thickness(0, 0, 0, 4) });
+        // One radio button per colour: Tab reaches the group, the arrow keys move between the colours and Space
+        // chooses one; a screen reader reads each by its name.
         var tiles = new UniformGrid { Columns = 6, Margin = new Thickness(-3, 0, -3, 4) };
-        var marks = new List<(string Key, Border Tile)>();
-        void Mark()
-        {
-            foreach (var (k, t) in marks)
-            {
-                bool on = k == Config.Accent;
-                if (on) { t.SetResourceReference(Border.BorderBrushProperty, "Mu.Accent"); t.SetResourceReference(Border.BackgroundProperty, "Mu.AccentSoft"); }
-                else { t.BorderBrush = Brushes.Transparent; t.Background = Brushes.Transparent; }
-            }
-        }
+        KeyboardNavigation.SetTabNavigation(tiles, KeyboardNavigationMode.Once);
+        KeyboardNavigation.SetDirectionalNavigation(tiles, KeyboardNavigationMode.Cycle);
+        AutomationProperties.SetName(tiles, tr("Color", "Colour", "色"));
         foreach (var a in Theme.Accents)
         {
             var img = new Image { Width = 40, Height = 40, Source = Theme.Icon(a.Key, 64), Margin = new Thickness(0, 2, 0, 3) };
             RenderOptions.SetBitmapScalingMode(img, BitmapScalingMode.HighQuality);
             // Room for two lines, so that a long name ("Verde azulado") wraps instead of being cut.
             var name = new TextBlock { Text = a.Name, FontSize = 11, TextAlignment = TextAlignment.Center, TextWrapping = TextWrapping.Wrap, Height = 30 };
-            var tile = new Border
+            var tile = new RadioButton
             {
-                Padding = new Thickness(2, 4, 2, 4), Margin = new Thickness(3), CornerRadius = new CornerRadius(9),
-                BorderThickness = new Thickness(2), Cursor = System.Windows.Input.Cursors.Hand, ToolTip = a.Name,
-                Child = new StackPanel { Children = { img, name } },
+                GroupName = "accent", IsChecked = a.Key == Config.Accent, ToolTip = a.Name,
+                Content = new StackPanel { Children = { img, name } },
             };
+            tile.SetResourceReference(StyleProperty, "Mu.AccentTile");
+            AutomationProperties.SetName(tile, a.Name);
             var key = a.Key;
-            tile.MouseLeftButtonUp += (s, e) => { manager.SetTheme(Config.Appearance, key); Mark(); };
-            marks.Add((key, tile));
+            tile.Checked += (s, e) => { if (tile.IsLoaded && Config.Accent != key) manager.SetTheme(Config.Appearance, key); };
             tiles.Children.Add(tile);
+            if (a.Key == Config.Accent) accentTile = tile;
         }
-        Mark();
         box.Children.Add(tiles);
         box.Children.Add(Hint(tr("El color se usa en el icono de las ventanas de Muelle, en el punto de las apps abiertas y en los controles.",
                                  "The colour is used for the icon of Muelle's windows, the dot of open apps and the controls.", "この色は Muelle のウィンドウのアイコン、起動中のアプリの点、コントロールに使われます。"),
@@ -370,29 +376,40 @@ internal sealed class SettingsWindow : Window
             box.Children.Add(screenRow);
         }
         // Editing the selected stack: a double click on it or "Edit stack…".
-        void EditSelected() => WithSelected((it, i) => { if (it.IsStack) StackWindow.Edit(manager, CurrentList, it, i); });
+        void EditSelected() => WithSelected((it, i) => { if (it.IsStack && !Config.LockItems) StackWindow.Edit(manager, CurrentList, it, i); });
         appList = new ListBox { Height = 150, Margin = new Thickness(0, 6, 0, 8) };
         appList.MouseDoubleClick += (s, e) => EditSelected();
         box.Children.Add(appList);
 
+        // The buttons that change the icons are disabled while the dock is locked, as the same lines of the dock
+        // menu are (see RefreshEnabled); "Edit stack…" stays available, as it does in the dock menu.
         var buttons = new WrapPanel();
-        buttons.Children.Add(Button(tr("Agregar…", "Add…", "追加…"), () => { manager.AddWithDialog(CurrentList); RefreshApps(); }));
-        buttons.Children.Add(Button(tr("Nueva pila…", "New stack…", "新しいスタック…"), () => StackWindow.Edit(manager, CurrentList, null, DockManager.PinnedCountOf(CurrentList))));
-        buttons.Children.Add(Button(tr("Editar pila…", "Edit stack…", "スタックを編集…"), EditSelected));
-        buttons.Children.Add(Button(tr("Quitar", "Remove", "削除"), () => WithSelected((it, i) => { CurrentList.RemoveAt(i); ItemsChanged(i - 1); })));
-        buttons.Children.Add(Button(tr("Subir", "Move up", "上へ"), () => WithSelected((it, i) =>
+        editButtons.Clear();
+        Button Edit(string text, Action onClick)
+        {
+            var b = Button(text, () => { if (!Config.LockItems) onClick(); });
+            ToolTipService.SetShowOnDisabled(b, true);
+            editButtons.Add(b);
+            return b;
+        }
+        buttons.Children.Add(Edit(tr("Agregar…", "Add…", "追加…"), () => { manager.AddWithDialog(CurrentList); RefreshApps(); }));
+        buttons.Children.Add(Edit(tr("Nueva pila…", "New stack…", "新しいスタック…"), () => StackWindow.Edit(manager, CurrentList, null, DockManager.PinnedCountOf(CurrentList))));
+        buttons.Children.Add(Edit(tr("Editar pila…", "Edit stack…", "スタックを編集…"), EditSelected));
+        buttons.Children.Add(Edit(tr("Quitar", "Remove", "削除"), () => WithSelected((it, i) => { CurrentList.RemoveAt(i); ItemsChanged(i - 1); })));
+        buttons.Children.Add(Edit(tr("Subir", "Move up", "上へ"), () => WithSelected((it, i) =>
         {
             if (i == 0) return;
             var l = CurrentList;
             l.RemoveAt(i); l.Insert(i - 1, it); ItemsChanged(i - 1);
         })));
-        buttons.Children.Add(Button(tr("Bajar", "Move down", "下へ"), () => WithSelected((it, i) =>
+        buttons.Children.Add(Edit(tr("Bajar", "Move down", "下へ"), () => WithSelected((it, i) =>
         {
             var l = CurrentList;
             if (i >= DockManager.PinnedCountOf(l) - 1) return;
             l.RemoveAt(i); l.Insert(i + 1, it); ItemsChanged(i + 1);
         })));
         box.Children.Add(buttons);
+        AppsCard = card;
         return card;
     }
 
@@ -425,14 +442,27 @@ internal sealed class SettingsWindow : Window
         manager.Changed();
     }
 
-    /// <summary>Dims the options that do not apply to the chosen style.</summary>
-    private void RefreshEnabled()
+    /// <summary>Dims the options that do not apply to the chosen style, and the icon buttons of a locked dock.</summary>
+    public void RefreshEnabled()
     {
+        bool locked = Config.LockItems;
+        foreach (var b in editButtons)
+        {
+            b.IsEnabled = !locked;
+            b.ToolTip = locked ? Ui.LockedHint : null;
+        }
         bool dock = Config.Style == DockStyle.Dock;
         zoomRow.IsEnabled = dock;
         panelRow.IsEnabled = !dock;
         backdropGroup.IsEnabled = dock;
         monitorCombo.IsEnabled = !Config.AllMonitors;
+    }
+
+    /// <summary>The dock was locked or unlocked (here or from the dock menu): the switch and the icon buttons follow.</summary>
+    public void LockChanged()
+    {
+        if (lockCheck != null) lockCheck.IsChecked = Config.LockItems;
+        RefreshEnabled();
     }
 
     private void UpdateZoomLabel()
@@ -531,7 +561,9 @@ internal sealed class SettingsWindow : Window
         return rb;
     }
 
-    private static CheckBox Check(string text, bool isChecked, Action<bool> onChange)
+    private static CheckBox Check(string text, bool isChecked, Action<bool> onChange) => Check(text, isChecked, onChange, out _);
+
+    private static CheckBox Check(string text, bool isChecked, Action<bool> onChange, out CheckBox created)
     {
         var cb = new CheckBox
         {
@@ -539,6 +571,7 @@ internal sealed class SettingsWindow : Window
             IsChecked = isChecked, Margin = new Thickness(0, 5, 0, 5),
         };
         cb.Click += (s, e) => onChange(cb.IsChecked == true);
+        created = cb;
         return cb;
     }
 

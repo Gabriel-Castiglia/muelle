@@ -111,7 +111,9 @@ internal static class Updates
     // ---------------- Checking ----------------
     private static HttpClient NewHttp(TimeSpan timeout)
     {
-        var http = new HttpClient { Timeout = timeout };
+        // Answers read whole (the release JSON, the hashes, the signature) are small; a larger one is refused. The
+        // setup itself is streamed to disk (HttpCompletionOption.ResponseHeadersRead), where this limit does not apply.
+        var http = new HttpClient { Timeout = timeout, MaxResponseContentBufferSize = 4 * 1024 * 1024 };
         http.DefaultRequestHeaders.UserAgent.ParseAdd("Muelle/" + Current);
         return http;
     }
@@ -137,9 +139,9 @@ internal static class Updates
             var latest = await LatestAsync();
             LastCheckReached = true;
             if (!IsNewer(latest.Tag, Current.ToString()))
-                return tr($"Tenés la última versión ({Current}).", $"You have the latest version ({Current}).", $"最新バージョン ({Current}) を使用しています。");
+                return tr($"Tienes la última versión ({Current}).", $"You have the latest version ({Current}).", $"最新バージョン ({Current}) を使用しています。");
             UpdateWindow.Ask(manager, latest);
-            return tr($"Está la versión {latest.Tag}.", $"Version {latest.Tag} is out.", $"バージョン {latest.Tag} が公開されています。");
+            return tr($"Ya está disponible la versión {latest.Tag}.", $"Version {latest.Tag} is out.", $"バージョン {latest.Tag} が公開されています。");
         }
         catch (Exception ex)
         {
@@ -166,6 +168,9 @@ internal static class Updates
     }
 
     // ---------------- Installing ----------------
+    /// <summary>The checked setup, open for reading only until Muelle exits (see <see cref="InstallAsync"/>).</summary>
+    private static FileStream heldSetup;
+
     /// <summary>
     /// Downloads and checks the setup, then hands over to it and quits. <paramref name="progress"/> receives texts to
     /// show while it works. Throws (with a message for the user) if anything fails before the setup starts.
@@ -174,10 +179,12 @@ internal static class Updates
     {
         if (busy) return;
         busy = true;
+        var file = Path.Combine(UpdateDir, SetupName);
+        bool started = false;
+        FileStream held = null;
         try
         {
             Directory.CreateDirectory(UpdateDir);
-            var file = Path.Combine(UpdateDir, SetupName);
             using (var http = NewHttp(TimeSpan.FromMinutes(15)))
             {
                 progress(tr("Comprobando la versión nueva…", "Checking the new version…", "新しいバージョンを確認しています…"));
@@ -186,7 +193,7 @@ internal static class Updates
                 var signature = await http.GetStringAsync(release.SigUrl);
                 var sums = await http.GetByteArrayAsync(release.SumsUrl);
                 if (!ReleaseSignature.Valid(sums, signature))
-                    throw new InvalidOperationException(tr("La firma del release no es válida: no se instaló nada. Se puede bajar a mano desde su página.",
+                    throw new InvalidOperationException(tr("La firma del release no es válida: no se instaló nada. Se puede descargar manualmente desde su página.",
                                                            "The release's signature is not valid: nothing was installed. It can be downloaded by hand from its page.",
                                                            "リリースの署名が無効なため、何もインストールしませんでした。ページから手動でダウンロードできます。"));
                 var expected = HashFor(System.Text.Encoding.UTF8.GetString(sums), SetupName)
@@ -212,7 +219,10 @@ internal static class Updates
                         }
                     }
                 }
-                if (!await VerifyAsync(file, expected))
+                // From the check of the hash until the setup has started, the file stays open for reading only:
+                // nobody can write, replace, rename or delete it in between, so what runs is what was checked.
+                held = Hold(file);
+                if (!await MatchesAsync(held, expected))
                     throw new InvalidOperationException(tr("El instalador descargado no coincide con su hash: se borró sin ejecutarlo.",
                                                            "The downloaded setup does not match its hash: it was deleted without running it.", "ダウンロードしたセットアップがハッシュと一致しません。実行せずに削除しました。"));
             }
@@ -223,11 +233,17 @@ internal static class Updates
             var psi = new ProcessStartInfo(file) { UseShellExecute = true, WorkingDirectory = UpdateDir };
             foreach (var a in SetupArguments(Environment.ProcessId)) psi.ArgumentList.Add(a);
             Process.Start(psi)?.Dispose();
+            started = true;
+            // Never closed by hand: it stays open while the setup starts and closes when this process ends, just after.
+            heldSetup = held;
             manager.Exit();
         }
         catch (Exception ex)
         {
             busy = false;
+            held?.Dispose();
+            // A download cut short (or a setup that never started) is not left behind; it would never be run anyway.
+            if (!started) try { File.Delete(file); } catch { }
             Program.Log("The update could not be installed: " + ex.Message);
             throw;
         }
@@ -242,11 +258,21 @@ internal static class Updates
     /// <summary>true if the file has the expected SHA-256; if it does not, it is deleted.</summary>
     internal static async Task<bool> VerifyAsync(string file, string expected)
     {
-        string actual;
-        await using (var fs = File.OpenRead(file)) actual = Convert.ToHexString(await SHA256.HashDataAsync(fs)).ToLowerInvariant();
-        if (actual == expected) return true;
+        bool same;
+        await using (var fs = Hold(file)) same = await MatchesAsync(fs, expected);
+        if (same) return true;
         try { File.Delete(file); } catch { }
         return false;
+    }
+
+    /// <summary>Opens a file for reading only, letting others read it (and run it) but not write, rename or delete it.</summary>
+    internal static FileStream Hold(string file) => new(file, FileMode.Open, FileAccess.Read, FileShare.Read);
+
+    /// <summary>Whether an open file has the expected SHA-256 (read from its start; the stream stays open).</summary>
+    private static async Task<bool> MatchesAsync(FileStream fs, string expected)
+    {
+        fs.Position = 0;
+        return Convert.ToHexString(await SHA256.HashDataAsync(fs)).ToLowerInvariant() == expected;
     }
 
     // ---------------- Coming back ----------------
@@ -309,7 +335,7 @@ internal static class Updates
         // 0x800704C7: the administrator permission was refused; 0x80070642: the setup was canceled.
         if (code.Equals("0x800704C7", StringComparison.OrdinalIgnoreCase) || code.Equals("0x80070642", StringComparison.OrdinalIgnoreCase))
             return tr("La actualización se canceló (no se dio el permiso de administrador). Muelle sigue en la versión " + Current + ".",
-                      "The update was canceled (the administrator permission was not given). Muelle stays at version " + Current + ".",
+                      "The update was cancelled (the administrator permission was not given). Muelle stays at version " + Current + ".",
                       "更新はキャンセルされました (管理者の許可が得られませんでした)。Muelle はバージョン " + Current + " のままです。");
         return tr($"La actualización no se pudo instalar (código {code}). Muelle sigue en la versión {Current}; el detalle está en el registro de instalación, en %TEMP%.",
                   $"The update could not be installed (code {code}). Muelle stays at version {Current}; the details are in the setup log, in %TEMP%.", $"更新をインストールできませんでした (コード {code})。Muelle はバージョン {Current} のままです。詳細は %TEMP% のセットアップログにあります。");
@@ -404,9 +430,9 @@ internal sealed class UpdateWindow : Window
             string tag = release?.Tag ?? "";
             bool auto = release != null && release.CanInstall && Updates.InstalledFolder() != null;
             root.Children.Add(Text(auto
-                ? tr($"Muelle {tag} está en GitHub; tenés la {Updates.Current}. Se puede instalar ahora: se descarga, se comprueba, y Muelle se cierra y vuelve a abrir solo.",
+                ? tr($"Muelle {tag} está en GitHub; tienes la {Updates.Current}. Se puede instalar ahora: se descarga, se comprueba, y Muelle se cierra y vuelve a abrir solo.",
                      $"Muelle {tag} is on GitHub; you have {Updates.Current}. It can be installed now: it is downloaded, checked, and Muelle closes and opens again by itself.", $"Muelle {tag} が GitHub で公開されています (現在は {Updates.Current})。今すぐインストールできます。ダウンロードと検証の後、Muelle は自動的に閉じて再び開きます。")
-                : tr($"Muelle {tag} está en GitHub; tenés la {Updates.Current}. Esta copia no es la instalada, así que la versión nueva se baja desde su página.",
+                : tr($"Muelle {tag} está en GitHub; tienes la {Updates.Current}. Esta copia no es la instalada, así que la versión nueva se descarga desde su página.",
                      $"Muelle {tag} is on GitHub; you have {Updates.Current}. This copy is not the installed one, so the new version is downloaded from its page.", $"Muelle {tag} が GitHub で公開されています (現在は {Updates.Current})。このコピーはインストール版ではないため、新しいバージョンはリリースページからダウンロードします。")));
             status = Text("");
             status.Visibility = Visibility.Collapsed;
@@ -434,7 +460,9 @@ internal sealed class UpdateWindow : Window
             working = false;
             buttons.IsEnabled = true;
             status.Text = tr("No se pudo actualizar: ", "Could not update: ", "更新できませんでした: ") + ex.Message;
-            MessageBox.Show(this, status.Text, "Muelle", MessageBoxButton.OK, MessageBoxImage.Warning);
+            // The window may have been closed while the update was under way: the message is shown without it.
+            if (IsVisible) MessageBox.Show(this, status.Text, "Muelle", MessageBoxButton.OK, MessageBoxImage.Warning);
+            else MessageBox.Show(status.Text, "Muelle", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 

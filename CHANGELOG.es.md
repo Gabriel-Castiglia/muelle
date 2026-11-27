@@ -5,14 +5,59 @@ mayor.menor.parche.
 
 [English](CHANGELOG.md) · Español · [日本語](CHANGELOG.ja.md)
 
+## 2.6.0 - 2026-11-27
+### Corregido
+
+- La página de actualización del instalador nombra la versión instalada («Muelle 2.5.2 está instalado. Se actualizará a
+  la versión…»); faltaba el número («Muelle  está instalado»), igual que en la página que avisa que hay una
+  versión más nueva instalada. Mientras actualiza, su barra de progreso dice «Actualizando Muelle…» en lugar de
+  «Instalando Muelle…».
+- El editor de pilas, si está abierto, cambia de idioma con las demás ventanas; quedaba en el idioma anterior.
+- Si se cierra la ventana de actualización mientras se descarga la versión nueva y después la actualización falla, el
+  mensaje de error aparece igual (se perdía), y una descarga interrumpida ya no queda en `%TEMP%\MuelleUpdate`.
+- **Con «Bloquear dock» activo, la configuración seguía cambiando los iconos**: Agregar…, Nueva pila…, Editar pila…,
+  Quitar, Subir y Bajar funcionaban igual. Ahora aparecen atenuados mientras el dock está bloqueado, con una información sobre
+  herramientas que explica el motivo (las líneas atenuadas del menú del dock tienen la misma), y siguen al bloqueo en
+  el acto cuando se cambia desde el menú del dock con la ventana abierta. Editar pila… también aparece atenuado en el
+  menú del dock, y el doble clic en la lista ya no abre el editor de pilas.
+- Editar una pila con el editor abierto para otra lo cerraba sin avisar, y sus cambios se perdían. Ahora la misma
+  pila trae su editor al frente, y otra pila pregunta antes si quieres descartar los cambios.
+- Activar o desactivar «Iniciar Muelle al encender Windows» ya no bloquea la ventana de configuración mientras
+  Windows cambia la tarea de inicio.
+- Un segundo arranque de Muelle mientras se volvía a abrir después de una actualización podía quedarse con los
+  argumentos que la actualización había dejado para el primero; ahora la comprobación de instancia única va antes que
+  todo lo demás.
+- Desde la comprobación de su hash hasta que arranca, el instalador descargado queda abierto solo para lectura, así
+  nada puede reemplazarlo entretanto.
+
+### Cambiado
+
+- Accesibilidad: los lectores de pantalla (Narrador, NVDA) ven el dock como una barra de herramientas con un botón por
+  icono, con el nombre de la aplicación o la pila, que indica si la aplicación está abierta y la abre como un clic.
+  Los doce colores de Configuración → Apariencia se pueden elegir con el teclado (Tab, las flechas y la barra
+  espaciadora), se leen por su nombre y muestran un marco donde está el foco del teclado.
+- Los textos en español del programa, del instalador y de la documentación tratan al lector de «tú», en español
+  neutro («Arrastra aquí tus apps», «Tienes la última versión»). Los textos en inglés usan la ortografía británica en
+  todas partes («Behaviour», «centred», «maximised», «cancelled», «licence»), como ya hacía «Colour», y fechas al
+  estilo británico.
+- Accesibilidad: los botones de opción, el selector de apariencia, los controles deslizantes, las listas
+  desplegables y los elementos de las listas muestran dónde está el foco del teclado, con un borde del color de
+  acento o un anillo del color del texto.
+- Los manuales en PDF tienen portada, índice, capítulos numerados, números de página y figuras numeradas, y
+  muestran el menú de un icono, el editor de pilas y la ventana Acerca de. Los README y los manuales describen el
+  menú de cada tipo de icono, el dock vacío, cada opción de la configuración con sus valores, los doce colores,
+  «Abrir carpeta de configuración», qué hace «Finalizar tarea», y suman una sección de solución de problemas y una
+  tabla de acciones con el mouse. Un capítulo nuevo, Teclado y lectores de pantalla, y una figura de Aplicaciones del
+  dock con el dock bloqueado.
+
 ## 2.5.2 - 2026-11-27
 
 ### Corregido
 
-- **El instalador vuelve a abrir Muelle cuando lo cerró para instalar encima**: correr `muelle-setup.exe` a mano con
+- **El instalador vuelve a abrir Muelle cuando lo cerró para instalar encima**: ejecutar `muelle-setup.exe` manualmente con
   el dock abierto lo dejaba cerrado al terminar. Ahora un Muelle de la misma sesión que el instalador cerró vuelve
   cuando el instalador termina (nunca después de desinstalar). Un instalador abierto como administrador lo arranca por
-  medio del Explorador, así el dock no corre como administrador y sigue aceptando archivos arrastrados desde el
+  medio del Explorador, así el dock no se ejecuta como administrador y sigue aceptando archivos arrastrados desde el
   Explorador.
 
 ## 2.5.1 - 2026-11-26
@@ -50,7 +95,7 @@ mayor.menor.parche.
 
 ### Agregado
 
-- «Iniciar Muelle al encender Windows» reconoce una tarea del Programador de tareas armada a mano que arranca Muelle
+- «Iniciar Muelle al encender Windows» reconoce una tarea del Programador de tareas creada manualmente que arranca Muelle
   (`\Muelle (inicio de sesion)` o `\Muelle`): la casilla la muestra, desmarcarla deshabilita la tarea y marcarla la
   vuelve a habilitar, y no se agrega además la clave Run, así Muelle nunca arranca dos veces. La tarea se busca fuera
   del hilo de la interfaz, así el dock no arranca más tarde.
@@ -62,7 +107,7 @@ mayor.menor.parche.
 ### Cambiado
 
 - Dibujo más liviano: la sombra de los iconos ya no se aplica al área del puntero, que ocupa todo el largo de la
-  pantalla, sino solo a lo que se dibuja; la etiqueta con el nombre se arma una vez por nombre en lugar de en cada
+  pantalla, sino solo a lo que se dibuja; la etiqueta con el nombre se compone una vez por nombre en lugar de en cada
   cuadro, y los fondos de los iconos sin imagen se hacen una sola vez.
 - Las imágenes de las ventanas en los manuales se vuelven a tomar, así Configuración muestra «Bloquear dock».
 
@@ -71,10 +116,10 @@ mayor.menor.parche.
 ### Cambiado
 
 - **Actualizaciones firmadas por el autor**: el `SHA256SUMS.txt` de una versión ahora tiene que llevar la firma del
-  autor (`release.sig`, ECDSA P-256, comprobada con dos claves que trae Muelle) antes de que se baje el instalador.
+  autor (`release.sig`, ECDSA P-256, comprobada con dos claves que trae Muelle) antes de que se descargue el instalador.
   Antes, el instalador solo se comparaba con hashes que venían de la misma página, así que una versión puesta ahí
-  por otra persona se habría instalado sola. Una versión sin firma válida se ofrece como página, para bajarla a mano.
-  Cualquiera puede seguir bajando, instalando y compartiendo Muelle como antes. Muelle 2.4.1 y anteriores instalan
+  por otra persona se habría instalado sola. Una versión sin firma válida se ofrece como página, para descargarla manualmente.
+  Cualquiera puede seguir descargando, instalando y compartiendo Muelle como antes. Muelle 2.4.1 y anteriores instalan
   esta como siempre.
 
 ### Corregido
@@ -91,12 +136,12 @@ mayor.menor.parche.
 ### Corregido
 
 - Un icono que no se puede leer ya no vacía el dock. Antes, un solo icono dañado en `config.json` (un campo de otro
-  tipo después de editarlo a mano, o al volver a una versión anterior) descartaba la lista entera, y los guardados
+  tipo después de editarlo manualmente, o al volver a una versión anterior) descartaba la lista entera, y los guardados
   siguientes dejaban vacío también `config.previous.json`. Ahora se descarta solo ese icono (o ese acceso de una
   pila); lo descartado se guarda en `config.dropped-<fecha>.json` y el archivo completo en
   `config.partial-<fecha>.json`, y `config.previous.json` conserva la versión que todavía lo tenía.
 - La configuración se escribe hasta el disco antes de reemplazar el archivo: un corte de luz justo después de
-  guardar deja el archivo nuevo o el viejo.
+  guardar deja el archivo nuevo o el anterior.
 - La búsqueda diaria de actualizaciones cuenta solo cuando llegó a GitHub. Una notebook que arrancaba sin red
   perdía la búsqueda de ese día; ahora vuelve a probar una hora después.
 - Aceptar «Renombrar…» sin cambiar el nombre ya no lo deja fijo: el nombre de una app predeterminada sigue el idioma
@@ -148,7 +193,7 @@ mayor.menor.parche.
 
 ### Corregido
 
-- Un acceso directo con un icono elegido a mano lo vuelve a mostrar. Desde la 2.3.0 el dock tomaba el icono del
+- Un acceso directo con un icono elegido manualmente lo vuelve a mostrar. Desde la 2.3.0 el dock tomaba el icono del
   programa que abre el acceso, de los accesos del propio programa, y dejaba de lado el elegido para ese acceso: un
   acceso que abre un documento con un icono rojo mostraba el icono del programa. Ahora gana el icono elegido para un
   acceso (en sus propiedades, desde fuera de la carpeta del programa), y el icono propio del programa se sigue solo
@@ -191,8 +236,8 @@ mayor.menor.parche.
 - Para un programa, el icono que nombran sus propios accesos directos (menú Inicio, escritorio, barra de tareas),
   cuando ese `.ico` está en la carpeta del programa. Vigía escribe ahí el icono del color que se le eligió y apunta
   sus accesos a él; el dock, que apunta a `Vigia.exe`, mostraba el icono que trae el programa. El archivo se lee
-  directo, porque la caché de iconos de Windows guarda la imagen vieja de una ruta cuyo archivo cambió. Un icono
-  elegido a mano desde otro lado no se toca.
+  directo, porque la caché de iconos de Windows guarda la imagen anterior de una ruta cuyo archivo cambió. Un icono
+  elegido manualmente desde otro lugar no se toca.
 
 ## 2.2.0 - 2026-11-20
 
@@ -200,11 +245,11 @@ mayor.menor.parche.
 
 - Actualizaciones que se instalan solas. Una vez por día (si la opción está marcada) y con «Buscar actualizaciones»
   (menú del dock y Acerca de Muelle…), Muelle le pregunta a GitHub por su última versión publicada y, si es más
-  nueva, hace una sola pregunta: Actualizar ahora, Ver novedades o Más tarde. Después todo pasa solo: se baja el
+  nueva, hace una sola pregunta: Actualizar ahora, Ver novedades o Más tarde. Después todo pasa solo: se descarga el
   instalador de esa versión y se compara con el `SHA256SUMS.txt` de la versión (un archivo que no coincide se borra
   y nunca se ejecuta), Muelle se cierra, el instalador instala en silencio conservando el idioma elegido al instalar,
   y Muelle se vuelve a abrir con los mismos argumentos. Si algo falla, Muelle sigue o vuelve y dice qué pasó. Una
-  copia que corre sin instalación solo ofrece la página de la versión.
+  copia que se ejecuta sin instalación solo ofrece la página de la versión.
 - El instalador acepta `/muellewaitpid=<pid>` (espera a que ese Muelle se cierre antes de tocar cualquier archivo) y
   `/muellerelaunch=1` (vuelve a abrir Muelle al terminar, diciendo si la actualización entró), que las
   actualizaciones usan junto con `/quiet`.
@@ -225,7 +270,7 @@ mayor.menor.parche.
 
 - Las imágenes de los manuales muestran apps de ejemplo y una pila, tomadas con la configuración predeterminada
   (`--sample`), nunca las apps de quien las genera; hay una imagen nueva de una pila abierta.
-- `scripts/manual.sh` también corre en Git Bash en Windows (Chrome se toma de `CHROME`).
+- `scripts/manual.sh` también funciona en Git Bash en Windows (Chrome se toma de `CHROME`).
 - Los campos de texto siguen la apariencia clara u oscura.
 
 ## 2.1.0 - 2026-11-11
@@ -234,12 +279,12 @@ mayor.menor.parche.
 
 - Claro, oscuro o como Windows. El dock pasa a ser de vidrio claro esmerilado o de vidrio oscuro, y las ventanas de
   configuración, Acerca de y aviso de versión nueva lo siguen, barra de título incluida. «Como Windows» cambia con
-  Windows mientras Muelle corre. Se elige en Configuración → Apariencia o desde el menú del dock. Un archivo de
+  Windows mientras Muelle se ejecuta. Se elige en Configuración → Apariencia o desde el menú del dock. Un archivo de
   configuración de una versión anterior conserva el dock oscuro; una instalación nueva sigue a Windows.
 - Doce colores. El elegido pinta el punto de las apps abiertas, los interruptores, los controles deslizantes y lo
   seleccionado, y el icono de las ventanas de Muelle.
 - Aviso de versiones nuevas: una vez por día Muelle le pregunta a GitHub el número de la última versión y, si es más
-  nueva, ofrece abrir la página de descarga. Se puede apagar en Configuración → Comportamiento; Acerca de Muelle…
+  nueva, ofrece abrir la página de descarga. Se puede desactivar en Configuración → Comportamiento; Acerca de Muelle…
   pregunta cuando se le pide.
 - `SHA256SUMS.txt` y los manuales en PDF en cada versión publicada.
 
@@ -271,7 +316,7 @@ mayor.menor.parche.
 ### Agregado
 
 - `README.txt` y `README.es.txt`, copias en texto plano de los README para leerlas sin un visor de Markdown.
-  `scripts/manual.sh` las arma junto con los manuales en PDF, y el instalador las pone junto a `Muelle.exe`.
+  `scripts/manual.sh` las genera junto con los manuales en PDF, y el instalador las pone junto a `Muelle.exe`.
 
 ### Corregido
 
@@ -314,7 +359,7 @@ mayor.menor.parche.
 
 - Arrastrar fuera del dock una aplicación abierta que no está fijada mostraba la animación de quitar, pero el icono
   se quedaba.
-- Cerrar una ventana del dock desde afuera (el instalador, Alt+F4) dejaba el programa corriendo sin ventanas, así
+- Cerrar una ventana del dock desde afuera (el instalador, Alt+F4) dejaba el programa en ejecución sin ventanas, así
   su ejecutable seguía en uso durante una actualización.
 - Desinstalar dejaba la entrada de «Iniciar con Windows» apuntando a un archivo que ya no existía.
 - Los ejecutables se abren solo como archivos de recursos cuando se leen sus iconos.

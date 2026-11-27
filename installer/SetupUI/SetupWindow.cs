@@ -137,8 +137,21 @@ internal sealed class SetupWindow : Window
         Buttons();
     });
 
+    /// <summary>
+    /// Takes the versions the engine found. The window is created before the engine detects anything (the engine
+    /// needs its handle), so the values copied in the constructor are not the final ones.
+    /// </summary>
+    private void TakeDetected()
+    {
+        if (app == null) return;
+        Version = app.Version;
+        OlderVersion = app.OlderVersion;
+        NewerVersion = app.NewerVersion;
+    }
+
     public void ShowStart(SetupState state)
     {
+        TakeDetected();
         switch (state)
         {
             case SetupState.Install:
@@ -192,6 +205,7 @@ internal sealed class SetupWindow : Window
 
     public void ShowProgress(LaunchAction action)
     {
+        TakeDetected();
         Applying = true;
         Show(() =>
         {
@@ -219,7 +233,7 @@ internal sealed class SetupWindow : Window
         {
             if (canceled)
             {
-                Body(tr("Se canceló. El equipo quedó como estaba.", "Canceled. The computer was left as it was.", "キャンセルしました。コンピューターは元の状態のままです。"));
+                Body(tr("Se canceló. El equipo quedó como estaba.", "Cancelled. The computer was left as it was.", "キャンセルしました。コンピューターは元の状態のままです。"));
                 Buttons(CloseButton(true));
                 return;
             }

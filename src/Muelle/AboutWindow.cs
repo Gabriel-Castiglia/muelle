@@ -69,7 +69,7 @@ internal sealed class AboutWindow : Window
         root.Children.Add(Muted(tr("Icono: el barco de tres palos del grabado de Frans Huys según Pieter Bruegel el Viejo (hacia 1561-1565), Museo Metropolitano de Arte, dominio público.",
                                    "Icon: the three-master of Frans Huys's engraving after Pieter Bruegel the Elder (c. 1561-1565), The Metropolitan Museum of Art, public domain.", "アイコン: ピーテル・ブリューゲル (父) の原画によるフランス・ハイスの版画 (1561-1565 年頃) の三本マストの帆船。メトロポリタン美術館、パブリックドメイン。"),
                                 12, new Thickness(0, 0, 0, 10)));
-        root.Children.Add(Line(tr("Creado por " + Author + " (6 de noviembre de 2026).", "Created by " + Author + " (November 6, 2026).", "作者: " + Author + " (2026 年 11 月 6 日)。")));
+        root.Children.Add(Line(tr("Creado por " + Author + " (6 de noviembre de 2026).", "Created by " + Author + " (6 November 2026).", "作者: " + Author + " (2026 年 11 月 6 日)。")));
         root.Children.Add(Line("Copyright © 2026 " + Author + "."));
         var repo = new TextBlock { TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 4) };
         var link = new Hyperlink(new Run(Repository.Replace("https://", ""))) { NavigateUri = new Uri(Repository) };
@@ -78,8 +78,8 @@ internal sealed class AboutWindow : Window
         repo.Inlines.Add(link);
         root.Children.Add(repo);
         root.Children.Add(Line(tr("Licencia: GNU General Public License, versión 2 (GPL-2.0-only).",
-                                  "License: GNU General Public License, version 2 (GPL-2.0-only).", "ライセンス: GNU General Public License バージョン 2 (GPL-2.0-only)。"), FontWeights.SemiBold));
-        root.Children.Add(Muted(tr("Este programa es software libre: puede redistribuirlo y/o modificarlo bajo los términos de la " +
+                                  "Licence: GNU General Public License, version 2 (GPL-2.0-only).", "ライセンス: GNU General Public License バージョン 2 (GPL-2.0-only)。"), FontWeights.SemiBold));
+        root.Children.Add(Muted(tr("Este programa es software libre: puedes redistribuirlo y/o modificarlo bajo los términos de la " +
                       "Licencia Pública General GNU, versión 2, publicada por la Free Software Foundation. Se distribuye con " +
                       "la esperanza de que sea útil, pero SIN NINGUNA GARANTÍA, ni siquiera la garantía implícita de " +
                       "COMERCIABILIDAD o IDONEIDAD PARA UN PROPÓSITO PARTICULAR.",
@@ -109,7 +109,7 @@ internal sealed class AboutWindow : Window
         root.Children.Add(updateRow);
 
         var buttons = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Right };
-        buttons.Children.Add(Button(tr("Ver licencia", "View license", "ライセンスを表示"), ShowLicense));
+        buttons.Children.Add(Button(tr("Ver licencia", "View licence", "ライセンスを表示"), ShowLicense));
         buttons.Children.Add(Button("gnu.org/licenses", () => Shell.Open(LicenseUrl)));
         var close = Button(tr("Cerrar", "Close", "閉じる"), Close);
         close.IsDefault = true;

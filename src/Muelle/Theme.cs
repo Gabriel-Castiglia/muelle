@@ -213,6 +213,14 @@ internal static class Ui
         return b;
     }
 
+    /// <summary>
+    /// Why a command that changes the icons is unavailable: the tooltip of those commands while the dock is locked, in
+    /// the dock menu and in the settings window alike.
+    /// </summary>
+    public static string LockedHint => Loc.tr("El dock está bloqueado. Para cambiar los iconos, desactiva «Bloquear dock».",
+                                              "The dock is locked. To change the icons, turn off “Lock dock”.",
+                                              "ドックはロックされています。アイコンを変更するには「ドックをロック」をオフにしてください。");
+
     /// <summary>A wrapping text in the muted colour of the theme (hints and secondary lines).</summary>
     public static TextBlock Muted(string text, double size, Thickness margin)
     {

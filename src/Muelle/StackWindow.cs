@@ -33,15 +33,39 @@ internal sealed class StackWindow : Window
     /// <summary>The stack being edited (a copy: the dock does not change until "Save").</summary>
     public DockItemConfig Stack { get; }
     private readonly List<DockItem> shown = new();
+    /// <summary>The stack as it was opened, to tell whether it has changed since (<see cref="Dirty"/>).</summary>
+    private readonly string saved;
 
     private TextBox nameBox;
     private Image preview;
     private ListBox entries;
 
-    /// <summary>Opens the editor for a stack of a list, or for a new stack (null) at a position (one editor at a time).</summary>
+    /// <summary>
+    /// Opens the editor for a stack of a list, or for a new stack (null) at a position (one editor at a time). An
+    /// editor already open is never closed in silence: for the same stack it comes to the front, and if it holds
+    /// changes that were not saved, the user is asked first whether to drop them.
+    /// </summary>
     public static void Edit(DockManager manager, List<DockItem> list, DockItem stack, int index)
     {
-        open?.Close();
+        if (open != null)
+        {
+            if (stack != null && open.old == stack && open.list == list)
+            {
+                open.Front();
+                return;
+            }
+            if (open.Dirty)
+            {
+                open.Front();
+                var answer = MessageBox.Show(open,
+                    tr($"La pila «{open.Stack.Name}» tiene cambios sin guardar. ¿Descartarlos y editar otra pila?",
+                       $"The stack “{open.Stack.Name}” has changes that were not saved. Discard them and edit another stack?",
+                       $"スタック「{open.Stack.Name}」には保存していない変更があります。変更を破棄して別のスタックを編集しますか?"),
+                    "Muelle", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+                if (answer != MessageBoxResult.Yes) return;
+            }
+            open.Close();
+        }
         open = new StackWindow(manager, list, stack, index);
         open.Closed += (s, e) => { if (s == open) open = null; };
         open.Show();
@@ -56,6 +80,7 @@ internal sealed class StackWindow : Window
         this.index = index;
         Stack = stack?.Cfg.Clone() ?? new DockItemConfig { Name = tr("Pila", "Stack", "スタック"), Stack = new() };
         foreach (var c in Stack.Stack) shown.Add(DockItem.From(c));
+        saved = Snapshot();
 
         Width = 460;
         SizeToContent = SizeToContent.Height;
@@ -65,10 +90,14 @@ internal sealed class StackWindow : Window
         Topmost = true;
         Theme.Attach(this);
         Build();
+        // A change of language rebuilds the texts; what is being edited lives in Stack and shown, not in the controls.
+        Loc.Changed += Build;
+        Closed += (s, e) => Loc.Changed -= Build;
     }
 
     private void Build()
     {
+        int selected = entries?.SelectedIndex ?? 0;   // kept across a rebuild for a change of language
         Title = old == null ? tr("Nueva pila", "New stack", "新しいスタック") : tr("Editar pila", "Edit stack", "スタックの編集");
         var root = new StackPanel { Margin = new Thickness(20, 16, 20, 14) };
 
@@ -112,7 +141,7 @@ internal sealed class StackWindow : Window
         root.Children.Add(footer);
         Content = root;
 
-        RefreshList(0);
+        RefreshList(selected);
     }
 
     // ---------------- Editing (also used by the self-test) ----------------
@@ -164,7 +193,18 @@ internal sealed class StackWindow : Window
         Close();
     }
 
+    /// <summary>Whether the stack has changes that "Save" has not taken to the dock yet.</summary>
+    public bool Dirty => Snapshot() != saved;
+
+    private string Snapshot() => System.Text.Json.JsonSerializer.Serialize(Stack);
+
     // ---------------- Helpers ----------------
+    private void Front()
+    {
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        Activate();
+    }
+
     private void AddWithDialog()
     {
         var dlg = Ui.AppsDialog(tr("Agregar a la pila", "Add to the stack", "スタックに追加"));

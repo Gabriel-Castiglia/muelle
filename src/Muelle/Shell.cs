@@ -57,11 +57,12 @@ internal static class Shell
     {
         if (string.IsNullOrWhiteSpace(path)) return null;
         IntPtr unk = IntPtr.Zero, hbm = IntPtr.Zero;
+        IShellItemImageFactory factory = null;
         try
         {
             var iid = typeof(IShellItemImageFactory).GUID;
             if (SHCreateItemFromParsingName(path, IntPtr.Zero, ref iid, out unk) != 0 || unk == IntPtr.Zero) return null;
-            var factory = (IShellItemImageFactory)Marshal.GetObjectForIUnknown(unk);
+            factory = (IShellItemImageFactory)Marshal.GetObjectForIUnknown(unk);
             // SIIGBF_BIGGERSIZEOK | SIIGBF_ICONONLY
             if (factory.GetImage(new SIZE { cx = px, cy = px }, 0x1 | 0x4, out hbm) != 0 || hbm == IntPtr.Zero) return null;
             return FromHBitmap(hbm);
@@ -70,6 +71,8 @@ internal static class Shell
         finally
         {
             if (hbm != IntPtr.Zero) DeleteObject(hbm);
+            // The wrapper holds its own reference: released now, not whenever the garbage collector gets to it.
+            if (factory != null) Marshal.ReleaseComObject(factory);
             if (unk != IntPtr.Zero) Marshal.Release(unk);
         }
     }
@@ -107,11 +110,12 @@ internal static class Shell
     public static string DisplayName(string parsingName)
     {
         IntPtr unk = IntPtr.Zero, name = IntPtr.Zero;
+        IShellItem item = null;
         try
         {
             var iid = typeof(IShellItem).GUID;
             if (SHCreateItemFromParsingName(parsingName, IntPtr.Zero, ref iid, out unk) != 0 || unk == IntPtr.Zero) return null;
-            var item = (IShellItem)Marshal.GetObjectForIUnknown(unk);
+            item = (IShellItem)Marshal.GetObjectForIUnknown(unk);
             if (item.GetDisplayName(0 /* SIGDN_NORMALDISPLAY */, out name) != 0) return null;
             return Marshal.PtrToStringUni(name);
         }
@@ -119,6 +123,7 @@ internal static class Shell
         finally
         {
             if (name != IntPtr.Zero) Marshal.FreeCoTaskMem(name);
+            if (item != null) Marshal.ReleaseComObject(item);
             if (unk != IntPtr.Zero) Marshal.Release(unk);
         }
     }
@@ -129,6 +134,7 @@ internal static class Shell
     private delegate bool EnumResNameProc(IntPtr module, IntPtr type, IntPtr name, IntPtr param);
     [DllImport("kernel32.dll")] private static extern bool EnumResourceNames(IntPtr module, IntPtr type, EnumResNameProc proc, IntPtr param);
     [DllImport("kernel32.dll")] private static extern IntPtr FindResource(IntPtr module, IntPtr name, IntPtr type);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, EntryPoint = "FindResourceW")] private static extern IntPtr FindResource(IntPtr module, string name, IntPtr type);
     [DllImport("kernel32.dll")] private static extern IntPtr LoadResource(IntPtr module, IntPtr res);
     [DllImport("kernel32.dll")] private static extern IntPtr LockResource(IntPtr data);
     [DllImport("kernel32.dll")] private static extern uint SizeofResource(IntPtr module, IntPtr res);
@@ -163,11 +169,19 @@ internal static class Shell
         if (mod == IntPtr.Zero) return null;
         try
         {
-            // First icon group (the one Explorer uses for index 0).
-            IntPtr group = IntPtr.Zero;
-            EnumResourceNames(mod, (IntPtr)14, (m, t, n, p) => { group = n; return false; }, IntPtr.Zero);
-            if (group == IntPtr.Zero) return null;
-            IntPtr dir = LockResource(LoadResource(mod, FindResource(mod, group, (IntPtr)14)));
+            // First icon group (the one Explorer uses for index 0). A name that is a string is copied inside the
+            // callback: its pointer is only valid there.
+            IntPtr groupId = IntPtr.Zero;
+            string groupName = null;
+            EnumResourceNames(mod, (IntPtr)14, (m, t, n, p) =>
+            {
+                if (((long)n >> 16) == 0) groupId = n; else groupName = Marshal.PtrToStringUni(n);
+                return false;
+            }, IntPtr.Zero);
+            if (groupId == IntPtr.Zero && groupName == null) return null;
+            IntPtr groupRes = groupName != null ? FindResource(mod, groupName, (IntPtr)14) : FindResource(mod, groupId, (IntPtr)14);
+            if (groupRes == IntPtr.Zero) return null;
+            IntPtr dir = LockResource(LoadResource(mod, groupRes));
             if (dir == IntPtr.Zero) return null;
 
             int count = Marshal.ReadInt16(dir, 4), best = -1, bestSize = 0, bestBits = 0;

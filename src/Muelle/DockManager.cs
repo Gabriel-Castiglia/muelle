@@ -31,7 +31,10 @@ internal sealed class DockManager
     public bool IsScreenshot => screenshotPath != null;
 
     private readonly string screenshotPath;
-    /// <summary>Window rendered by a test screenshot: "dock", "settings", "about", "update", "menu", "stack" or "stack-editor".</summary>
+    /// <summary>
+    /// Window rendered by a test screenshot: "dock", "settings", "settings-locked" (only the "Dock applications" card,
+    /// with the dock locked), "about", "update", "menu", "stack" or "stack-editor".
+    /// </summary>
     private readonly string screenshotWindow;
     private readonly List<DockWindow> windows = new();
     private readonly DispatcherTimer rebuildTimer, runningTimer, saveTimer;
@@ -98,10 +101,21 @@ internal sealed class DockManager
                 "menu" => MenuPreview(),
                 "stack" => MenuPreview(Items.FirstOrDefault(i => i.IsStack)),
                 "stack-editor" => new StackWindow(this, Items, Items.FirstOrDefault(i => i.IsStack), 0),
+                // Only in memory, like every option of a screenshot: the configuration is never saved in this mode.
+                "settings-locked" => LockedForScreenshot(),
                 _ => new SettingsWindow(this),
             };
             w.ContentRendered += (s, e) =>
-                w.Dispatcher.BeginInvoke(new Action(() => { SaveScreenshot(w, screenshotPath); Exit(); }), DispatcherPriority.ContextIdle);
+            {
+                // The settings show the keyboard focus on the chosen colour, as after a Tab into that group.
+                if (w is SettingsWindow sw && screenshotWindow == "settings") sw.AccentTile?.Focus();
+                w.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (w is SettingsWindow locked && screenshotWindow == "settings-locked") SaveScreenshot(locked.AppsCard, locked.Background, screenshotPath);
+                    else SaveScreenshot(w, screenshotPath);
+                    Exit();
+                }), DispatcherPriority.ContextIdle);
+            };
             w.Show();
             return;
         }
@@ -594,9 +608,8 @@ internal sealed class DockManager
         if (Config.LockItems == locked) return;
         Config.LockItems = locked;
         SaveConfig();
-        // Deferred: the change may come from a control of the settings window that is about to be replaced.
-        var open = settings;
-        open?.Dispatcher.BeginInvoke(new Action(open.Rebuild));
+        // An open settings window follows at once: its switch and the buttons that change the icons.
+        settings?.LockChanged();
     }
 
     /// <summary>Changes the interface language; open windows rebuild their texts.</summary>
@@ -688,6 +701,40 @@ internal sealed class DockManager
             enc.Save(fs);
         }
         catch (Exception ex) { Program.Log("Could not save the screenshot: " + ex); }
+    }
+
+    /// <summary>Test screenshot of one part of a window, on the window's background, with a small margin around it.</summary>
+    private static void SaveScreenshot(FrameworkElement part, Brush background, string path)
+    {
+        try
+        {
+            const double margin = 10;
+            var dpi = VisualTreeHelper.GetDpi(part);
+            double width = part.ActualWidth + 2 * margin, height = part.ActualHeight + 2 * margin;
+            var rtb = new RenderTargetBitmap((int)Math.Ceiling(width * dpi.DpiScaleX), (int)Math.Ceiling(height * dpi.DpiScaleY),
+                                             dpi.PixelsPerInchX, dpi.PixelsPerInchY, PixelFormats.Pbgra32);
+            // Drawn through a brush of the part itself: rendering the part directly would place it at its offset in the window.
+            var visual = new DrawingVisual();
+            using (var dc = visual.RenderOpen())
+            {
+                dc.DrawRectangle(background ?? Brushes.Transparent, null, new Rect(0, 0, width, height));
+                dc.DrawRectangle(new VisualBrush(part) { Stretch = Stretch.None }, null, new Rect(margin, margin, part.ActualWidth, part.ActualHeight));
+            }
+            rtb.Render(visual);
+            var enc = new PngBitmapEncoder();
+            enc.Frames.Add(BitmapFrame.Create(rtb));
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            using var fs = File.Create(path);
+            enc.Save(fs);
+        }
+        catch (Exception ex) { Program.Log("Could not save the screenshot: " + ex); }
+    }
+
+    private SettingsWindow LockedForScreenshot()
+    {
+        Config.LockItems = true;
+        return new SettingsWindow(this);
     }
 
     /// <summary>The smallest part of the image that holds every visible pixel, plus a margin.</summary>

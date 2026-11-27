@@ -49,6 +49,7 @@ internal static class SelfTest
             Section("Screens", Screens);
             Section("Docks per screen", PerMonitor);
             Section("Stacks", Stacks);
+            Section("Lock and accessibility", LockAndAccessibility);
             Section("Icons that follow the app", Icons);
             Section("Fullscreen apps", Fullscreen);
             Section("Updates", UpdateFunctions);
@@ -396,6 +397,64 @@ internal static class SelfTest
               && add.Filter.Contains("*.lnk") && add.Filter.Contains("*.exe"));
     }
 
+    // ---------------- Lock and accessibility ----------------
+    private static void LockAndAccessibility()
+    {
+        WriteConfig(c => { c.Items = new() { Item("notepad.exe"), Item("calc.exe") }; c.ShowRunningApps = false; c.LockItems = true; });
+        var m = new DockManager(null, null, selfTest: true);
+        var settings = new SettingsWindow(m);
+        Check("locked: the settings disable the buttons that change the icons, and say why",
+              settings.EditButtons.Count == 6 && settings.EditButtons.All(b => !b.IsEnabled && b.ToolTip is string t && t.Length > 0));
+        m.SetLocked(false);
+        settings.LockChanged();
+        Check("unlocked: the same buttons are enabled again at once", settings.EditButtons.All(b => b.IsEnabled && b.ToolTip == null));
+        m.SetLocked(true);
+        settings.LockChanged();
+        Check("locked again: they follow", settings.EditButtons.All(b => !b.IsEnabled));
+        var dock = new DockWindow(m, null, null);
+        var menu = dock.BuildMenu(null, 0);
+        Check("locked: the dock menu disables adding, with the same explanation", menu.Items.OfType<System.Windows.Controls.MenuItem>()
+              .Where(i => !i.IsEnabled && i.Header is string).All(i => (i.ToolTip as string) == Ui.LockedHint)
+              && menu.Items.OfType<System.Windows.Controls.MenuItem>().Count(i => !i.IsEnabled) >= 2);
+        var lockedStack = m.PutStack(m.Items, new DockItemConfig { Name = "Locked", Stack = new() { Item("notepad.exe") } }, null, 0);
+        bool EditDisabled(System.Windows.Controls.ItemsControl c) => c.Items.OfType<System.Windows.Controls.MenuItem>()
+            .Any(i => (i.Header as string) == Loc.tr("Editar pila…", "Edit stack…", "スタックを編集…") && !i.IsEnabled && (i.ToolTip as string) == Ui.LockedHint);
+        Check("locked: \"Edit stack…\" is disabled in the stack and in its right-click menu", EditDisabled(dock.BuildStackMenu(lockedStack)) && EditDisabled(dock.BuildMenu(lockedStack, 0)));
+        m.SetLocked(false);
+
+        // The colours are radio buttons of one group, each with its name, exactly one chosen.
+        static IEnumerable<T> Find<T>(DependencyObject root) where T : DependencyObject
+        {
+            foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+            {
+                if (child is T t) yield return t;
+                foreach (var d in Find<T>(child)) yield return d;
+            }
+        }
+        var tiles = Find<System.Windows.Controls.RadioButton>(settings).Where(r => r.GroupName == "accent").ToList();
+        Check("the colours can be chosen with the keyboard and are named for screen readers",
+              tiles.Count == Theme.Accents.Length && tiles.All(t => t.Focusable && System.Windows.Automation.AutomationProperties.GetName(t).Length > 0)
+              && tiles.Count(t => t.IsChecked == true) == 1);
+        settings.Close();
+
+        // The dock for screen readers: one button per icon, with its name, that can be invoked.
+        var peer = System.Windows.Automation.Peers.UIElementAutomationPeer.CreatePeerForElement(dock.View);
+        var children = peer?.GetChildren() ?? new();
+        Check("the dock is a tool bar for UI Automation", peer?.GetAutomationControlType() == System.Windows.Automation.Peers.AutomationControlType.ToolBar);
+        Check("one element per icon, named after it, that can be invoked", children.Count == m.Items.Count
+              && children.Select(c => c.GetName()).SequenceEqual(m.Items.Select(i => i.Name))
+              && children.All(c => c.GetAutomationControlType() == System.Windows.Automation.Peers.AutomationControlType.Button
+                                   && c.GetPattern(System.Windows.Automation.Peers.PatternInterface.Invoke) != null));
+
+        // A stack editor knows whether it holds changes, so opening another one never drops them in silence.
+        var stack = m.PutStack(m.Items, new DockItemConfig { Name = "Tools", Stack = new() { Item("notepad.exe") } }, null, 0);
+        var editor = new StackWindow(m, m.Items, stack, 0);
+        Check("a stack editor just opened has no changes", !editor.Dirty);
+        editor.AddPaths(new[] { Sys("calc.exe") });
+        Check("after a change it has", editor.Dirty);
+        editor.Close();
+    }
+
     // ---------------- Updates ----------------
     private static void UpdateFunctions()
     {
@@ -445,6 +504,28 @@ internal static class SelfTest
         string good = Convert.ToHexString(SHA256.HashData(Encoding.ASCII.GetBytes("Muelle"))).ToLowerInvariant();
         Check("a file that matches its hash is kept", Updates.VerifyAsync(file, good).GetAwaiter().GetResult() && File.Exists(file));
         Check("a file that does not match is deleted", !Updates.VerifyAsync(file, h1).GetAwaiter().GetResult() && !File.Exists(file));
+
+        // Between the check and the start of the setup, the file is held open: it can be run, not changed or removed.
+        string exe = Path.Combine(dir, "held.exe");
+        File.Copy(Path.Combine(Environment.SystemDirectory, "cmd.exe"), exe);
+        using (var held = Updates.Hold(exe))
+        {
+            bool cannotWrite = false, cannotDelete = false, cannotRename = false;
+            try { using var w = new FileStream(exe, FileMode.Open, FileAccess.Write, FileShare.ReadWrite); } catch (IOException) { cannotWrite = true; }
+            try { File.Delete(exe); } catch (IOException) { cannotDelete = true; } catch (UnauthorizedAccessException) { cannotDelete = true; }
+            try { File.Move(exe, exe + ".moved"); } catch (IOException) { cannotRename = true; } catch (UnauthorizedAccessException) { cannotRename = true; }
+            Check("a held setup cannot be written, deleted or renamed", cannotWrite && cannotDelete && cannotRename && File.Exists(exe));
+            int code = -1;
+            try
+            {
+                using var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe, "/c exit 7")
+                    { UseShellExecute = true, WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden, WorkingDirectory = dir });
+                if (p != null && p.WaitForExit(20000)) code = p.ExitCode;
+            }
+            catch (Exception ex) { Line("        error: " + ex.Message); }
+            Check("a held setup can still be started", code == 7);
+        }
+        try { File.Delete(exe); } catch { }
 
         var args = Updates.SetupArguments(1234);
         Check("the setup runs in silence, waits for Muelle and starts it again",

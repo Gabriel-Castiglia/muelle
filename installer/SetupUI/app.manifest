@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   app.manifest
-  Application manifest for Muelle.
+  Application manifest for the Muelle setup window.
 
   Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
   Date: November 8, 2026

@@ -530,7 +530,7 @@ internal sealed class DockWindow : Window
             menu.Items.Add(mi);
         }
         menu.Items.Add(new Separator());
-        menu.Items.Add(Cmd(tr("Editar pila…", "Edit stack…", "スタックを編集…"), () => EditStack(stack)));
+        menu.Items.Add(Enabled(Cmd(tr("Editar pila…", "Edit stack…", "スタックを編集…"), () => EditStack(stack)), !Config.LockItems));
         return menu;
     }
 
@@ -576,7 +576,7 @@ internal sealed class DockWindow : Window
         if (item != null && item.IsStack)
         {
             menu.Items.Add(Cmd(tr("Abrir la pila", "Open the stack", "スタックを開く"), () => ShowStack(item)));
-            menu.Items.Add(Cmd(tr("Editar pila…", "Edit stack…", "スタックを編集…"), () => EditStack(item)));
+            menu.Items.Add(Enabled(Cmd(tr("Editar pila…", "Edit stack…", "スタックを編集…"), () => EditStack(item)), !locked));
             menu.Items.Add(Enabled(Cmd(tr("Liberar del dock", "Unpin from dock", "ドックから外す"), () => RemoveItem(item)), !locked));
             menu.Items.Add(new Separator());
         }
@@ -629,9 +629,15 @@ internal sealed class DockWindow : Window
         return menu;
     }
 
+    /// <summary>Enables a line of the menu; a line the lock disables says why in its tooltip.</summary>
     private static MenuItem Enabled(MenuItem mi, bool enabled)
     {
         mi.IsEnabled = enabled;
+        if (!enabled)
+        {
+            mi.ToolTip = Ui.LockedHint;
+            ToolTipService.SetShowOnDisabled(mi, true);
+        }
         return mi;
     }
 

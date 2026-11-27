@@ -25,14 +25,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <!-- The single place where the version is set; scripts\build.ps1 and the installers read it from here. -->
-    <Version>2.5.2</Version>
+    <Version>2.6.0</Version>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Product>Muelle</Product>
     <Description>A dock for Windows</Description>
     <Authors>Gabriel Castiglia</Authors>
     <Company>Gabriel Castiglia</Company>
     <Copyright>Copyright (C) 2026 Gabriel Castiglia</Copyright>
-    <!-- The interface carries its own English and Spanish texts; no framework satellite assemblies. -->
+    <!-- The interface carries its own English, Spanish and Japanese texts; no framework satellite assemblies. -->
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <!-- Debug data names source files from the repository root (/_/), not from the folder where it was built. -->

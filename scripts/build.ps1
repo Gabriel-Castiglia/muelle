@@ -14,9 +14,8 @@
 #   LICENSE.txt       the license, next to the executable
 #   muelle.msi        MSI package (silent install: msiexec /i muelle.msi /qn)
 #   muelle-setup.exe  setup program in English, Spanish and Japanese that contains the MSI
-# At the end it prints the SHA-256 of the three programs in the format of sha256sum ("hash  name"): the lines of the
-# release asset SHA256SUMS.txt, which Muelle checks the setup against before an update installs itself
-# (src\Muelle\Updates.cs). No hash file is written to disk.
+# At the end it prints the SHA-256 of the three programs in the format of sha256sum ("hash  name"), on screen only:
+# no hash file is written to disk. The sums and the signature of a release are published separately.
 # Requires the .NET 10 SDK; the WiX Toolset is restored automatically as a NuGet package.
 # The version is read from src\Muelle\Muelle.csproj, the only place where it is set.
 
@@ -41,7 +40,7 @@ if ($LASTEXITCODE) { throw 'App publish failed.' }
 dotnet build (Join-Path $root 'installer\Msi\Muelle.Msi.wixproj') -c Release -o $dist -p:PublishDir=$publish -p:Version=$version
 if ($LASTEXITCODE) { throw 'MSI build failed.' }
 
-# 3) The setup window (English and Spanish), then the setup .exe that carries it and the MSI.
+# 3) The setup window (English, Spanish and Japanese), then the setup .exe that carries it and the MSI.
 $setupUi = Join-Path $root 'build\setupui\'
 dotnet build (Join-Path $root 'installer\SetupUI\MuelleSetup.csproj') -c Release -o $setupUi
 if ($LASTEXITCODE) { throw 'Setup window build failed.' }

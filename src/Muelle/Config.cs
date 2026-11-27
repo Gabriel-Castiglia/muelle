@@ -205,8 +205,10 @@ public sealed class DockConfig
             }
             if (cfg != null)
             {
+                // The copy is of the file that was read: the previous one when config.json could not be (that one
+                // was already kept aside as config.unreadable-…).
                 if (cfg.SavedBy != RunningVersion)
-                    Keep(FilePath, "config.before-" + (string.IsNullOrEmpty(RunningVersion) ? "update" : RunningVersion) + ".json");
+                    Keep(from, "config.before-" + (string.IsNullOrEmpty(RunningVersion) ? "update" : RunningVersion) + ".json");
                 cfg.Sanitize();
                 return cfg;
             }
@@ -469,8 +471,10 @@ public sealed class DockConfig
                 UseShellExecute = false, CreateNoWindow = true,
                 RedirectStandardOutput = true, RedirectStandardError = true,
             });
+            // Both streams are read in the background: reading one to its end first would wait for schtasks to
+            // exit, and the time limit below would never apply.
             var output = p.StandardOutput.ReadToEndAsync();
-            p.StandardError.ReadToEnd();
+            _ = p.StandardError.ReadToEndAsync();
             if (!p.WaitForExit(10000)) { try { p.Kill(); } catch { } return (-1, ""); }
             return (p.ExitCode, output.Result);
         }
@@ -483,6 +487,21 @@ public sealed class DockConfig
     public static void RefreshStartup()
     {
         if (RunValue() && StartupTask() == null) SetRun(true);
+    }
+
+    private static readonly object startupLock = new();
+    private static Task startupWork = Task.CompletedTask;
+
+    /// <summary>
+    /// Turns starting with Windows on or off in the background: changing the startup task runs schtasks, which can
+    /// take seconds, and the settings window must not freeze meanwhile. Changes run one after the other, in the order
+    /// they were asked for, so a quick on-off-on ends in the last state.
+    /// </summary>
+    public static Task SetStartupAsync(bool on)
+    {
+        lock (startupLock)
+            return startupWork = startupWork.ContinueWith(_ => SetStartup(on), CancellationToken.None,
+                                                          TaskContinuationOptions.None, TaskScheduler.Default);
     }
 
     public static void SetStartup(bool on)

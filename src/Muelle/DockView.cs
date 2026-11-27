@@ -14,6 +14,9 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Effects;
@@ -97,6 +100,32 @@ internal sealed class DockView : FrameworkElement
         BlurRadius = 12, ShadowDepth = 1.5, Direction = 270, Opacity = 0.38,
         Color = Colors.Black, RenderingBias = RenderingBias.Performance,
     };
+
+    // ---------------- Accessibility ----------------
+    /// <summary>
+    /// What a screen reader (Narrator, NVDA) and other UI Automation clients see: the dock as a tool bar with one
+    /// button per icon, named after it, that can be invoked like a click (stacks open their list).
+    /// </summary>
+    protected override AutomationPeer OnCreateAutomationPeer() => new DockViewAutomationPeer(this);
+
+    /// <summary>The items of this dock, in order (for UI Automation).</summary>
+    internal IReadOnlyList<DockItem> AccessibleItems => host.Items;
+
+    /// <summary>Invoking an icon from UI Automation: the same as a click on it.</summary>
+    internal void InvokeFromAutomation(DockItem item)
+    {
+        if (!host.Items.Contains(item)) return;
+        Dispatcher.BeginInvoke(new Action(() => host.ActivateItem(item, false)));
+    }
+
+    /// <summary>The icons changed: UI Automation clients are told to read the list again.</summary>
+    private void ItemsChangedForAutomation()
+    {
+        if (!AutomationPeer.ListenerExists(AutomationEvents.StructureChanged)) return;
+        if (UIElementAutomationPeer.FromElement(this) is DockViewAutomationPeer peer) peer.ResetChildrenCache();
+    }
+
+    private readonly List<DockItem> lastItems = new();
 
     protected override int VisualChildrenCount => 1;
     protected override Visual GetVisualChild(int index) => index == 0 ? content : throw new ArgumentOutOfRangeException(nameof(index));
@@ -263,6 +292,12 @@ internal sealed class DockView : FrameworkElement
     private void ComputeLayout()
     {
         var list = new List<Entry>();
+        if (!lastItems.SequenceEqual(host.Items))
+        {
+            lastItems.Clear();
+            lastItems.AddRange(host.Items);
+            ItemsChangedForAutomation();
+        }
         foreach (var it in host.Items)
         {
             if (dragging && it == pressItem) continue;
@@ -391,7 +426,7 @@ internal sealed class DockView : FrameworkElement
         if (hoverIndex >= 0 && hoverIndex < layout.Count && k > 0.04 && !dragging && !host.MenuOpen)
         {
             var e = layout[hoverIndex];
-            string text = e.IsPlaceholder ? tr("Arrastrá aquí tus apps", "Drag your apps here", "ここにアプリをドラッグしてください") : e.Item?.Name;
+            string text = e.IsPlaceholder ? tr("Arrastra aquí tus apps", "Drag your apps here", "ここにアプリをドラッグしてください") : e.Item?.Name;
             if (!string.IsNullOrEmpty(text))
             {
                 // The text is laid out once per name, not on every frame of the zoom.
@@ -661,4 +696,93 @@ internal sealed class DockView : FrameworkElement
             host.AddPaths(files, idx < 0 ? host.Items.Count : idx);
         Kick();
     }
+}
+
+/// <summary>The dock for UI Automation: a tool bar whose children are its icons.</summary>
+internal sealed class DockViewAutomationPeer : FrameworkElementAutomationPeer
+{
+    // One peer per item, kept while the item is in the dock, so a client sees the same element across refreshes.
+    private readonly Dictionary<DockItem, DockItemAutomationPeer> peers = new();
+
+    public DockViewAutomationPeer(DockView owner) : base(owner) { }
+
+    private DockView View => (DockView)Owner;
+
+    protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.ToolBar;
+    protected override string GetClassNameCore() => nameof(DockView);
+    protected override string GetNameCore() => "Muelle";
+    protected override bool IsContentElementCore() => true;
+    protected override bool IsControlElementCore() => true;
+
+    protected override List<AutomationPeer> GetChildrenCore()
+    {
+        var items = View.AccessibleItems;
+        foreach (var gone in peers.Keys.Where(k => !items.Contains(k)).ToList()) peers.Remove(gone);
+        var children = new List<AutomationPeer>();
+        foreach (var it in items)
+        {
+            if (!peers.TryGetValue(it, out var p)) peers[it] = p = new DockItemAutomationPeer(View, it);
+            children.Add(p);
+        }
+        return children;
+    }
+
+    public new void ResetChildrenCache()
+    {
+        base.ResetChildrenCache();
+        RaiseAutomationEvent(AutomationEvents.StructureChanged);
+    }
+}
+
+/// <summary>One icon of the dock for UI Automation: a button with the icon's name that can be invoked.</summary>
+internal sealed class DockItemAutomationPeer : AutomationPeer, IInvokeProvider
+{
+    private readonly DockView view;
+    internal DockItem Item { get; }
+
+    public DockItemAutomationPeer(DockView view, DockItem item)
+    {
+        this.view = view;
+        Item = item;
+    }
+
+    public void Invoke() => view.InvokeFromAutomation(Item);
+
+    public override object GetPattern(PatternInterface pattern) => pattern == PatternInterface.Invoke ? this : null;
+
+    protected override string GetNameCore() => Item.Name;
+    protected override string GetItemStatusCore() =>
+        Item.IsStack ? tr($"pila, {Item.Children.Count} accesos", $"stack, {Item.Children.Count} shortcuts", $"スタック、ショートカット {Item.Children.Count} 個")
+        : Item.Running ? tr("abierta", "open", "起動中") : "";
+    protected override string GetHelpTextCore() => Item.IsStack ? tr("Abre la pila", "Opens the stack", "スタックを開きます")
+                                                                : tr("Abre la app o pasa a su ventana", "Opens the app or switches to its window", "アプリを開くか、そのウィンドウに切り替えます");
+    protected override AutomationControlType GetAutomationControlTypeCore() => AutomationControlType.Button;
+    protected override string GetClassNameCore() => "DockItem";
+    protected override string GetAutomationIdCore() => "";
+    protected override string GetItemTypeCore() => Item.IsStack ? tr("pila", "stack", "スタック") : tr("app", "app", "アプリ");
+    protected override Rect GetBoundingRectangleCore()
+    {
+        var r = view.IconScreenRect(Item);
+        return r is { } x ? new Rect(x.Left, x.Top, x.Width, x.Height) : Rect.Empty;
+    }
+    protected override Point GetClickablePointCore()
+    {
+        var r = GetBoundingRectangleCore();
+        return r.IsEmpty ? new Point(double.NaN, double.NaN) : new Point(r.X + r.Width / 2, r.Y + r.Height / 2);
+    }
+    protected override bool IsOffscreenCore() => GetBoundingRectangleCore().IsEmpty;
+    protected override List<AutomationPeer> GetChildrenCore() => null;
+    protected override string GetAcceleratorKeyCore() => "";
+    protected override string GetAccessKeyCore() => "";
+    protected override AutomationPeer GetLabeledByCore() => null;
+    protected override AutomationOrientation GetOrientationCore() => AutomationOrientation.None;
+    protected override bool HasKeyboardFocusCore() => false;
+    protected override bool IsContentElementCore() => true;
+    protected override bool IsControlElementCore() => true;
+    protected override bool IsEnabledCore() => true;
+    protected override bool IsKeyboardFocusableCore() => false;
+    protected override bool IsPasswordCore() => false;
+    protected override bool IsRequiredForFormCore() => false;
+    protected override void SetFocusCore() { }
+    protected override AutomationPeer GetPeerFromPointCore(Point point) => this;
 }

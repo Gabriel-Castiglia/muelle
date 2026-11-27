@@ -266,6 +266,10 @@
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource Mu.Accent}" />
                         </Trigger>
+                        <!-- Keyboard focus: the ring takes the text colour (the default focus rectangle is turned off). -->
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource Mu.Text}" />
+                        </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5" />
                         </Trigger>
@@ -289,7 +293,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="RadioButton">
-                    <Border x:Name="Bg" CornerRadius="6" Padding="14,4" Background="Transparent">
+                    <Border x:Name="Bg" CornerRadius="6" Padding="14,4" Background="Transparent" BorderThickness="1" BorderBrush="Transparent">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
                     <ControlTemplate.Triggers>
@@ -303,6 +307,42 @@
                         </Trigger>
                         <Trigger Property="IsChecked" Value="False">
                             <Setter Property="Opacity" Value="0.75" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bg" Property="BorderBrush" Value="{DynamicResource Mu.Accent}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Accent colour tiles: radio buttons (one group), so they can be chosen with the keyboard and read by a
+         screen reader. The chosen one has the accent frame; keyboard focus shows a frame in the text colour. -->
+    <Style x:Key="Mu.AccentTile" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{DynamicResource Mu.Text}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Margin" Value="3" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Grid>
+                        <Border x:Name="Bg" Padding="2,4" CornerRadius="9" BorderThickness="2" BorderBrush="Transparent" Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" />
+                        </Border>
+                        <Border x:Name="Focus" CornerRadius="11" BorderThickness="1.5" BorderBrush="Transparent" Margin="-2" IsHitTestVisible="False" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bg" Property="Background" Value="{DynamicResource Mu.Hover}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Bg" Property="BorderBrush" Value="{DynamicResource Mu.Accent}" />
+                            <Setter TargetName="Bg" Property="Background" Value="{DynamicResource Mu.AccentSoft}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Focus" Property="BorderBrush" Value="{DynamicResource Mu.Text}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -330,6 +370,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Slider">
+                    <Border x:Name="Focus" BorderThickness="1" BorderBrush="Transparent" CornerRadius="11" Padding="1,0">
                     <Track x:Name="PART_Track">
                         <Track.DecreaseRepeatButton>
                             <RepeatButton Style="{StaticResource Mu.TrackButton}" Background="{DynamicResource Mu.Accent}" Command="Slider.DecreaseLarge" />
@@ -354,7 +395,11 @@
                             </Thumb>
                         </Track.Thumb>
                     </Track>
+                    </Border>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Focus" Property="BorderBrush" Value="{DynamicResource Mu.Accent}" />
+                        </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.45" />
                         </Trigger>
@@ -413,6 +458,7 @@
                         </ToggleButton>
                         <ContentPresenter Margin="11,0,30,0" VerticalAlignment="Center" IsHitTestVisible="False"
                                           Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" />
+                        <Border x:Name="Focus" CornerRadius="7" BorderThickness="1" BorderBrush="Transparent" IsHitTestVisible="False" />
                         <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True"
                                IsOpen="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}}"
                                Focusable="False" PopupAnimation="Fade" HorizontalOffset="-12" VerticalOffset="-2">
@@ -425,6 +471,9 @@
                         </Popup>
                     </Grid>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Focus" Property="BorderBrush" Value="{DynamicResource Mu.Accent}" />
+                        </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5" />
                         </Trigger>
@@ -469,7 +518,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ListBoxItem">
-                    <Border x:Name="Bg" Margin="3,1" CornerRadius="6" Padding="8,4" Background="Transparent">
+                    <Border x:Name="Bg" Margin="3,1" CornerRadius="6" Padding="8,4" Background="Transparent" BorderThickness="1" BorderBrush="Transparent">
                         <ContentPresenter />
                     </Border>
                     <ControlTemplate.Triggers>
@@ -478,6 +527,9 @@
                         </Trigger>
                         <Trigger Property="IsSelected" Value="True">
                             <Setter TargetName="Bg" Property="Background" Value="{DynamicResource Mu.AccentSoft}" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Bg" Property="BorderBrush" Value="{DynamicResource Mu.Accent}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

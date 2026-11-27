@@ -3,7 +3,7 @@
  * Stylesheet for the PDF manuals.
  *
  * Copyright (C) 2026 Gabriel Castiglia. Licensed under the GNU GPL, version 2 only.
- * Date: November 8, 2026
+ * Date: November 8, 2026 (cover page, contents, numbered sections and figures: November 27, 2026)
  * SPDX-License-Identifier: GPL-2.0-only
  *
  * This program is free software: you can redistribute it and/or modify it under the terms of
@@ -11,16 +11,43 @@
  * It is distributed WITHOUT ANY WARRANTY. See the LICENSE file for details.
  */
 
-@page { size: A4; margin: 20mm 18mm 22mm; }
+/*
+ * A4 pages. The cover has no margins and no footer; every other page carries the name of the manual on the
+ * left and its page number on the right, in the bottom margin (Chrome prints CSS page-margin boxes).
+ */
+@page {
+    size: A4;
+    margin: 18mm 18mm 20mm;
+    @bottom-left {
+        content: "Muelle";  /* manual.sh sets the name and version of each manual */
+        font: 8pt "Segoe UI", "Meiryo", sans-serif;
+        color: #6e6e73;
+        vertical-align: top;
+        padding-top: 4mm;
+    }
+    @bottom-right {
+        content: counter(page);
+        font: 8pt "Segoe UI", "Meiryo", sans-serif;
+        color: #6e6e73;
+        vertical-align: top;
+        padding-top: 4mm;
+    }
+}
+@page :first {
+    margin: 0;
+    @bottom-left { content: none; }
+    @bottom-right { content: none; }
+}
 
 /*
- * The colours of Muelle's own light theme with its default accent, blue (Theme.cs: Palette and Accents),
- * so the manual looks like the program it describes.
+ * The colours of Muelle's own light theme with its default accent, blue (Theme.xaml and Theme.cs: Palette and
+ * Accents), so the manual looks like the program it describes.
  */
 :root {
     --text: #1d1d1f;        /* Mu.Text */
     --muted: #6e6e73;       /* Mu.TextMuted */
     --accent: #1f5fd1;      /* the blue accent, light tone: also the tile of the icon */
+    --accent-dark: #17489f; /* the same blue, darker, for the bottom of the cover band */
     --accent-soft: #d7e2f7; /* Mu.AccentSoft: the accent at 18 % over white */
     --line: #e3e3e8;        /* Mu.CardBorder */
     --code-bg: #f3f3f6;     /* Mu.Window */
@@ -29,46 +56,128 @@
 html { font-size: 10.5pt; }
 
 body {
-    font-family: "Segoe UI Variable Text", "Segoe UI", "Yu Gothic UI", "Meiryo UI", -apple-system, "Helvetica Neue", sans-serif;
+    font-family: "Segoe UI Variable Text", "Segoe UI", "Meiryo", -apple-system, "Helvetica Neue", sans-serif;
     color: var(--text);
-    line-height: 1.5;
+    line-height: 1.55;
     max-width: none;
     margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
 }
+/* Japanese: kana and kanji in Meiryo (Yu Gothic otherwise), Latin letters still in Segoe UI; strict line breaks. */
+html:lang(ja) body {
+    font-family: "Segoe UI", "Meiryo", "Yu Gothic", "Hiragino Sans", sans-serif;
+    line-height: 1.7;
+    line-break: strict;
+}
+
+/* ---------- Cover: a page of its own ---------- */
 
 .cover {
+    height: 297mm;
+    display: flex;
+    flex-direction: column;
+    break-after: page;
+}
+.cover .band {
+    background: linear-gradient(160deg, var(--accent) 0%, var(--accent-dark) 100%);
+    color: #fff;
+    padding: 34mm 22mm 16mm;
     display: flex;
     align-items: center;
-    gap: 14px;
-    padding-bottom: 14px;
-    margin-bottom: 18px;
+    gap: 9mm;
+}
+.cover .band img {
+    width: 40mm;
+    height: 40mm;
+    border-radius: 9mm;
+    box-shadow: 0 3mm 8mm rgba(0, 0, 0, 0.28);
+}
+.cover .name { font-size: 40pt; font-weight: 700; line-height: 1.05; margin: 0; letter-spacing: -0.5pt; }
+.cover .kind { font-size: 15pt; margin: 2mm 0 0; opacity: 0.92; }
+.cover .tagline {
+    margin: 14mm 22mm 0;
+    font-size: 14pt;
+    line-height: 1.45;
+    color: var(--text);
+}
+.cover .shot { margin: 12mm 22mm 0; text-align: center; }
+.cover .shot img { width: 150mm; max-width: 100%; }
+.cover .meta {
+    margin: auto 22mm 20mm;
+    padding-top: 5mm;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 9.5pt;
+    line-height: 1.6;
+}
+.cover .meta p { margin: 0; }
+.cover .meta .version { color: var(--accent); font-weight: 600; font-size: 11pt; }
+.cover a { color: inherit; text-decoration: none; }
+
+/* ---------- Contents ---------- */
+
+nav#TOC { break-after: page; }
+nav#TOC > h2#toc-title {
+    font-size: 20pt;
+    color: var(--accent);
+    margin: 0 0 6mm;
+    padding-bottom: 2mm;
     border-bottom: 2px solid var(--accent);
 }
-.cover img { width: 72px; height: 72px; }
-.cover .name { font-size: 22pt; font-weight: 700; margin: 0; }
-.cover .subtitle { margin: 2px 0 0; color: var(--muted); }
-
-/* The README title is hidden: the cover block replaces it. */
-body > h1:first-of-type { display: none; }
-
-h2 {
-    font-size: 14pt;
-    color: var(--accent);
-    margin: 22px 0 6px;
-    padding-bottom: 3px;
+nav#TOC ul { list-style: none; padding: 0; margin: 0; }
+nav#TOC li {
+    font-size: 11pt;
+    padding: 2.2mm 0;
     border-bottom: 1px solid var(--line);
-    break-after: avoid;
+}
+nav#TOC a { color: var(--text); }
+nav#TOC .toc-section-number {
+    display: inline-block;
+    min-width: 9mm;
+    color: var(--accent);
+    font-weight: 600;
 }
 
+/* ---------- Text ---------- */
+
+h1 {
+    font-size: 16pt;
+    color: var(--accent);
+    margin: 9mm 0 2.5mm;
+    padding-bottom: 1.2mm;
+    border-bottom: 1px solid var(--line);
+    break-after: avoid;
+    line-height: 1.3;
+}
+h1 .header-section-number {
+    display: inline-block;
+    min-width: 9mm;
+    font-weight: 700;
+}
+h2, h3 { font-size: 12pt; margin: 6mm 0 2mm; break-after: avoid; }
+
 p, li { orphans: 3; widows: 3; }
+li + li { margin-top: 1.2mm; }
+ul, ol { padding-left: 6mm; }
 
 a { color: var(--accent); text-decoration: none; }
 
+blockquote {
+    margin: 4mm 0;
+    padding: 2.5mm 4mm;
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    border-radius: 0 6px 6px 0;
+}
+blockquote p { margin: 0; }
+
 code {
-    font-family: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
-    font-size: 0.88em;
+    font-family: "Cascadia Mono", Consolas, "SF Mono", Menlo, "Meiryo", monospace;
+    font-size: 0.86em;
     background: var(--code-bg);
-    padding: 1px 4px;
+    padding: 0.5px 4px;
     border-radius: 3px;
 }
 
@@ -86,13 +195,32 @@ pre code { background: none; padding: 0; }
 table {
     width: 100%;
     border-collapse: collapse;
-    margin: 8px 0 12px;
+    margin: 3mm 0 4mm;
     font-size: 0.92em;
-    break-inside: avoid;
 }
+tr { break-inside: avoid; }
+thead { display: table-header-group; }
 th, td { border: 1px solid var(--line); padding: 5px 7px; text-align: left; vertical-align: top; }
 th { background: var(--accent-soft); }
 td code { overflow-wrap: anywhere; }
+td:first-child code { white-space: nowrap; overflow-wrap: normal; }
 
-/* Screenshots: centered, never wider than the page, and short enough to keep the text around them. */
-p > img { display: block; margin: 8px auto 4px; max-width: 100%; max-height: 95mm; }
+/* ---------- Figures: screenshots with a numbered caption, never split from it ---------- */
+
+body { counter-reset: figure; }
+figure {
+    margin: 4mm 0 5mm;
+    text-align: center;
+    break-inside: avoid;
+}
+figure img { max-width: 100%; max-height: 72mm; }
+figure.wide img { width: 100%; max-height: none; }
+figcaption {
+    counter-increment: figure;
+    margin-top: 1.5mm;
+    font-size: 0.88em;
+    color: var(--muted);
+}
+figcaption::before { content: "Figure " counter(figure) ". "; font-weight: 600; color: var(--text); }
+html:lang(es) figcaption::before { content: "Figura " counter(figure) ". "; }
+html:lang(ja) figcaption::before { content: "図 " counter(figure) "　"; }

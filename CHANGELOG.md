@@ -4,6 +4,46 @@ All notable changes to Muelle. Versions follow [semantic versioning](https://sem
 
 English · [Español](CHANGELOG.es.md) · [日本語](CHANGELOG.ja.md)
 
+## 2.6.0 - 2026-11-27
+### Fixed
+
+- The update page of the setup names the installed version ("Muelle 2.5.2 is installed. It will be updated
+  to version…"); the number was missing ("Muelle  is installed"), as on the page that says a newer version is
+  installed. While it updates, its progress bar says "Updating Muelle…" instead of "Installing Muelle…".
+- An open stack editor changes language with the other windows; it stayed in the previous language.
+- If the update window is closed while the update downloads and the update then fails, its error message is still
+  shown (it was lost), and an interrupted download no longer stays in `%TEMP%\MuelleUpdate`.
+- **With "Lock dock" on, Settings still changed the icons**: Add…, New stack…, Edit stack…, Remove, Move up and
+  Move down worked as before. Now they are dimmed while the dock is locked, with a tooltip that says why (the dimmed lines of
+  the dock menu have the same one), and they follow the lock at once when it is changed from the dock menu while
+  the window is open. Edit stack… is dimmed in the dock menu too, and a double click in the list no longer opens the
+  stack editor.
+- Editing a stack while the editor was open for another one closed it in silence, and its changes were lost. Now
+  the same stack brings its editor to the front, and another stack first asks whether to discard the changes.
+- Turning "Start Muelle when Windows starts" on or off no longer freezes the settings window while Windows changes
+  the startup task.
+- A second start of Muelle while it was opening again after an update could take the arguments the update had left
+  for the first one; the single-instance check now comes before anything else.
+- From the check of its hash until it has started, the downloaded setup stays open for reading only, so nothing can
+  replace it in between.
+
+### Changed
+
+- Accessibility: screen readers (Narrator, NVDA) see the dock as a tool bar with one button per icon, named after
+  the app or stack, that says whether the app is open and opens it like a click. The twelve colours in Settings →
+  Appearance can be chosen with the keyboard (Tab, the arrow keys and Space), are read by their names and show a
+  frame where the keyboard focus is.
+- The Spanish texts of the program, the setup and the documentation address the reader as «tú» in neutral Spanish
+  ("Arrastra aquí tus apps", "Tienes la última versión"). The English texts use British spelling throughout
+  ("Behaviour", "centred", "maximised", "cancelled", "licence"), as "Colour" already did, and British dates.
+- Accessibility: option buttons, the appearance switch, sliders, drop-down lists and list items show where the
+  keyboard focus is, with a border in the accent colour or a ring in the colour of the text.
+- The PDF manuals have a cover page, a contents page, numbered chapters, page numbers and numbered figures, and
+  show the menu of an icon, the stack editor and the About window. The READMEs and manuals describe the menu of
+  each kind of icon, the empty dock, every option of Settings with its values, the twelve colours, "Open settings
+  folder", what "End task" does, and have a new Troubleshooting section and a table of mouse actions. A new
+  chapter, Keyboard and screen readers, and a figure of Dock applications with the dock locked.
+
 ## 2.5.2 - 2026-11-27
 
 ### Fixed
@@ -46,7 +86,7 @@ English · [Español](CHANGELOG.es.md) · [日本語](CHANGELOG.ja.md)
 
 ### Added
 
-- "Start Muelle when Windows starts" recognizes a Task Scheduler task made by hand that starts Muelle
+- "Start Muelle when Windows starts" recognises a Task Scheduler task made by hand that starts Muelle
   (`\Muelle (inicio de sesion)` or `\Muelle`): the check box shows it, turning it off disables the task and turning it
   on enables it again, and the Run key is not added on top, so Muelle never starts twice. The task is looked for off
   the UI thread, so the dock does not start later.
@@ -170,7 +210,7 @@ English · [Español](CHANGELOG.es.md) · [日本語](CHANGELOG.ja.md)
   everything, and a game that scrolls the view when the pointer reaches the edge brought it up again and again.
   Now the dock looks for itself every second and whenever another window comes to the front: if that window covers
   its whole screen without a title bar, the dock hides completely, also from the pointer at the edge, and comes
-  back when the app leaves fullscreen or another window comes to the front. A maximized window with a title bar
+  back when the app leaves fullscreen or another window comes to the front. A maximised window with a title bar
   does not count.
 
 ## 2.3.0 - 2026-11-21
@@ -205,7 +245,7 @@ English · [Español](CHANGELOG.es.md) · [日本語](CHANGELOG.ja.md)
   grid, and shortcuts that are added, removed and reordered in the stack editor. "Move to stack" in the
   menu of an icon puts it in a stack.
 - Each screen with its own icons (Settings → Location). A new screen starts with a copy of the common
-  icons; screens are recognized by the device name of the monitor and its connector (or by display name and
+  icons; screens are recognised by the device name of the monitor and its connector (or by display name and
   resolution), and the icons of a disconnected screen are kept and come back with it. Off by default: every
   screen shows the same dock, as before.
 - `Muelle.exe --self-test <log>`: checks the settings file, stacks, icons per screen and the update
@@ -231,7 +271,7 @@ English · [Español](CHANGELOG.es.md) · [日本語](CHANGELOG.ja.md)
 - Twelve colours. The one chosen colours the dot under open apps, the switches, sliders and selected
   items, and the icon of Muelle's windows.
 - Notice of new versions: once a day Muelle asks GitHub for the latest version number and, if it is newer,
-  offers to open the download page. It can be turned off in Settings → Behavior; About Muelle… asks on
+  offers to open the download page. It can be turned off in Settings → Behaviour; About Muelle… asks on
   request.
 - `SHA256SUMS.txt` and the PDF manuals in each release.
 
@@ -267,7 +307,7 @@ English · [Español](CHANGELOG.es.md) · [日本語](CHANGELOG.ja.md)
 ### Fixed
 
 - The properties of `muelle-setup.exe` said "All rights reserved"; they now give the GPL-2.0-only
-  license, like the rest of Muelle.
+  licence, like the rest of Muelle.
 
 ## 2.0.0 - 2026-11-08
 
@@ -284,10 +324,10 @@ English · [Español](CHANGELOG.es.md) · [日本語](CHANGELOG.ja.md)
 
 ### Changed
 
-- License: GNU GPL version 2 only (GPL-2.0-only); version 1.0 was GPL-3.0-or-later.
+- Licence: GNU GPL version 2 only (GPL-2.0-only); version 1.0 was GPL-3.0-or-later.
 - Store apps show their sharpest icon: the dock reads the app package and picks the largest logo or
   the icon of its executable, instead of the small one Windows gives to the taskbar.
-- Runs on .NET 10 (version 1.0 used .NET 8, which reaches the end of its support on November 10, 2026).
+- Runs on .NET 10 (version 1.0 used .NET 8, which reaches the end of its support on 10 November 2026).
 - The names of the applications added on the first start follow the interface language, and Windows
   Terminal is added when it is present (Windows PowerShell otherwise).
 - One scan of the open windows per second, shared by every monitor, instead of one per dock window.
@@ -298,7 +338,7 @@ English · [Español](CHANGELOG.es.md) · [日本語](CHANGELOG.ja.md)
 - The version is set only in `src/Muelle/Muelle.csproj`; the installers and the About window read it
   from there.
 - New repository layout (`src`, `installer`, `scripts`, `docs`), UTF-8 files with LF line endings, and
-  one license header format.
+  one licence header format.
 
 ### Fixed
 
