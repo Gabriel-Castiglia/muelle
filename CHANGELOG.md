@@ -4,6 +4,17 @@ All notable changes to Muelle. Versions follow [semantic versioning](https://sem
 
 English · [Español](CHANGELOG.es.md) · [日本語](CHANGELOG.ja.md)
 
+## 2.6.1 - 2026-11-28
+### Fixed
+
+- With the dock on a side of the screen and "Reserve its screen strip" on, the desktop icons and the maximised windows moved a few
+  pixels each time an app opened or closed. When the icons do not fit along the edge they get smaller, and the reserved
+  strip got thinner with them, so Windows rearranged the desktop. The strip now keeps the thickness of the chosen icon
+  size, and smaller icons are centred in it.
+- A pinned File Explorer showed up again as a second, unpinned icon when a folder window was open, and its own icon had
+  no running dot. Explorer windows do not carry the ID of the File Explorer shortcut (Windows sets it for the whole
+  process); the dock now gives it to them.
+
 ## 2.6.0 - 2026-11-27
 ### Fixed
 

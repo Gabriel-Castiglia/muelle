@@ -5,6 +5,17 @@ mayor.menor.parche.
 
 [English](CHANGELOG.md) · Español · [日本語](CHANGELOG.ja.md)
 
+## 2.6.1 - 2026-11-28
+### Corregido
+
+- Con el dock en un costado de la pantalla y «Reservar su franja de pantalla» activado, los íconos del escritorio y las ventanas
+  maximizadas se corrían unos píxeles cada vez que se abría o se cerraba una app. Cuando los íconos no entran a lo largo
+  del borde se achican, y la franja reservada se angostaba con ellos, así que Windows reacomodaba el escritorio. Ahora la
+  franja conserva el grosor del tamaño de ícono elegido y los íconos más chicos van centrados en ella.
+- El Explorador de archivos anclado aparecía otra vez como un segundo ícono, sin anclar, cuando había una carpeta abierta,
+  y el suyo no mostraba el punto de app abierta. Las ventanas del Explorador no llevan el identificador de su acceso
+  (Windows se lo pone al proceso entero); ahora el dock se lo asigna.
+
 ## 2.6.0 - 2026-11-27
 ### Corregido
 

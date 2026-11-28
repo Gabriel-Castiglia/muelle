@@ -578,6 +578,23 @@ internal static class Shell
         catch { }
     }
 
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern int SHGetNameFromIDList(IntPtr pidl, uint sigdn, out IntPtr name);
+
+    /// <summary>Whether a link points to a place of the shell namespace ("::{CLSID}") instead of a file.</summary>
+    private static bool LinkToShellPlace(IShellLinkW link)
+    {
+        IntPtr pidl = IntPtr.Zero, name = IntPtr.Zero;
+        try
+        {
+            link.GetIDList(out pidl);
+            if (pidl == IntPtr.Zero || SHGetNameFromIDList(pidl, 0x80028000 /* SIGDN_DESKTOPABSOLUTEPARSING */, out name) != 0) return false;
+            return Marshal.PtrToStringUni(name)?.StartsWith("::{", StringComparison.Ordinal) == true;
+        }
+        catch { return false; }
+        finally { Marshal.FreeCoTaskMem(name); Marshal.FreeCoTaskMem(pidl); }
+    }
+
     /// <summary>Actual program a .lnk points to (or the file itself if it is not a shortcut).</summary>
     public static string ResolveTarget(string path)
     {
@@ -599,7 +616,9 @@ internal static class Shell
             // Links to shell objects (e.g., Control Panel) have no file target: match them by the
             // AppUserModelID stored in the link, which their windows also carry.
             string aumid = WindowTracker.LinkAumid(link);
-            return aumid == null ? null : WindowTracker.AumidPrefix + aumid;
+            if (aumid != null) return WindowTracker.AumidPrefix + aumid;
+            // A link to a shell place with no AUMID of its own ("This PC", "Home") opens an Explorer window.
+            return LinkToShellPlace((IShellLinkW)link) ? WindowTracker.AumidPrefix + WindowTracker.ExplorerAumid : null;
         }
         catch { return null; }
         finally { if (link != null) Marshal.ReleaseComObject(link); }
@@ -736,6 +755,15 @@ internal static class WindowTracker
 {
     /// <summary>Prefix of the keys that identify an app by its AppUserModelID instead of by its path.</summary>
     public const string AumidPrefix = "aumid:";
+    /// <summary>
+    /// AppUserModelID of the File Explorer shortcut. Its windows do not carry it (Explorer sets it for the whole
+    /// process), so without this they did not match the pinned icon and showed up again as an app of their own (2.6.1).
+    /// </summary>
+    public const string ExplorerAumid = "Microsoft.Windows.Explorer";
+
+    /// <summary>The AUMID an Explorer folder window stands for, given its executable and class; null for any other.</summary>
+    public static string ExplorerWindowAumid(string path, string cls) =>
+        cls == "CabinetWClass" && path != null && path.EndsWith(@"\explorer.exe", StringComparison.OrdinalIgnoreCase) ? ExplorerAumid : null;
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetApplicationUserModelId(IntPtr process, ref uint length, StringBuilder id);
@@ -907,7 +935,7 @@ internal static class WindowTracker
         Native.GetWindowThreadProcessId(hwnd, out uint pid);
         string path = Native.ProcessImagePath(pid);
         if (path != null) keys.Add(path);
-        string a = WindowAumid(hwnd);
+        string a = WindowAumid(hwnd) ?? ExplorerWindowAumid(path, Native.ClassOf(hwnd));
         if (a != null) keys.Add(AumidPrefix + a);
         a = ProcessAumid(pid);
         if (a != null) keys.Add(AumidPrefix + a);
@@ -939,7 +967,7 @@ internal static class WindowTracker
             wins.Add(h);
             // Store apps are identified by their AppUserModelID (e.g., Teams or Kate).
             if (!aumids.TryGetValue(pid, out var procAumid)) aumids[pid] = procAumid = ProcessAumid(pid);
-            string winAumid = WindowAumid(h);
+            string winAumid = WindowAumid(h) ?? ExplorerWindowAumid(path, cls);
             string aumid = winAumid ?? procAumid;
             if (aumid != null)
             {

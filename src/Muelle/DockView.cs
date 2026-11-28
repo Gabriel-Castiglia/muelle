@@ -158,8 +158,14 @@ internal sealed class DockView : FrameworkElement
     }
     public bool IsPanel => Cfg.Style == DockStyle.Panel;
     public double Zoom => IsPanel ? Base : Math.Max(Base, Cfg.ZoomSize);
-    public double Pad => Math.Round(Base * 0.3) + 2;
-    public double Thickness => Base + 2 * Pad;
+    /// <summary>
+    /// Thickness of the strip, from the configured icon size and never from the effective one: an app that opens
+    /// or closes changes the number of icons and so the effective size, and a strip that followed it made Windows
+    /// move the desktop icons and the maximized windows a few pixels each time (2.6.1). Smaller icons are centered.
+    /// </summary>
+    public double Thickness => StripFor(Cfg.IconSize);
+    public double Pad => Math.Floor((Thickness - Base) / 2);
+    public static double StripFor(double iconSize) => iconSize + 2 * (Math.Round(iconSize * 0.3) + 2);
     private double Gap => Math.Round(Base * 0.22);
     public bool Vertical => Cfg.Edge is DockEdge.Left or DockEdge.Right;
     /// <summary>Total window width: the panel plus room for the zoom, the bounce and the label.</summary>

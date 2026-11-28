@@ -52,6 +52,7 @@ internal static class SelfTest
             Section("Lock and accessibility", LockAndAccessibility);
             Section("Icons that follow the app", Icons);
             Section("Fullscreen apps", Fullscreen);
+            Section("Steady strip and File Explorer", SteadyStrip);
             Section("Updates", UpdateFunctions);
             if (Environment.GetCommandLineArgs().Contains("--online")) Section("Updates, online", Online);
             GC.KeepAlive(app);
@@ -395,6 +396,29 @@ internal static class SelfTest
         var add = Ui.AppsDialog("x");
         Check("the add dialog takes several files and keeps a shortcut as itself", add.Multiselect && !add.DereferenceLinks
               && add.Filter.Contains("*.lnk") && add.Filter.Contains("*.exe"));
+    }
+
+    // ---------------- Steady strip and File Explorer (2.6.1) ----------------
+    private static void SteadyStrip()
+    {
+        string[] files = { "notepad.exe", "calc.exe", "mspaint.exe", "cmd.exe", "charmap.exe", "write.exe" };
+        WriteConfig(c => { c.Edge = DockEdge.Left; c.IconSize = 40; c.ShowRunningApps = false; c.Items = files.Select(Item).ToList(); });
+        var m = new DockManager(null, null, selfTest: true);
+        var dock = new DockWindow(m, null, null);
+        var v = dock.View;
+        v.Measure(new Size(120, 200));
+        v.Arrange(new Rect(0, 0, 120, 200));
+        double fewBase = v.Base, fewStrip = v.Thickness;
+        m.Items.AddRange(files.Select(f => DockItem.From(Item(f))));
+        double manyBase = v.Base, manyStrip = v.Thickness;
+        Check("on a short edge, more icons make them smaller", manyBase < fewBase);
+        Check("the strip keeps its thickness when icons are added (no jitter of the desktop)", manyStrip == fewStrip && fewStrip == DockView.StripFor(40));
+        Check("smaller icons are centred in the strip", Math.Abs(2 * v.Pad + manyBase - manyStrip) <= 1);
+        Check("an Explorer folder window stands for the File Explorer shortcut",
+              WindowTracker.ExplorerWindowAumid(Sys(@"..\explorer.exe"), "CabinetWClass") == WindowTracker.ExplorerAumid);
+        Check("other Explorer windows and other programs do not",
+              WindowTracker.ExplorerWindowAumid(Sys(@"..\explorer.exe"), "Shell_TrayWnd") == null
+              && WindowTracker.ExplorerWindowAumid(Sys("notepad.exe"), "CabinetWClass") == null);
     }
 
     // ---------------- Lock and accessibility ----------------
